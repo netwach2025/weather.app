@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>NetWatch Weather</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Phosphor Icons (Still used for UI elements like Locate/Clock, but not weather) -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  
+  <style>
+    /* ========== BASE ========== */
+    :root {
+      /* Dynamic variables managed by JS */
+      --wx-bg-top: #274690;
+      --wx-bg-bottom: #020617;
+      
+      --wx-card-bg: rgba(15, 23, 42, 0.65); /* More transparent for background visibility */
+      --wx-card-border: rgba(148, 163, 184, 0.2);
+      --wx-text-main: #f8fafc;
+      --wx-text-soft: #94a3b8;
+      --wx-accent: #f97316;
+      --wx-needle-angle: -40deg;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--wx-text-main);
+      
+      /* BACKGROUND LOGIC */
+      /* 1. The Gradient (Top Layer) - Tints the image based on weather */
+      /* 2. The Image (Bottom Layer) - boom.png */
+      background: 
+        radial-gradient(circle at top, var(--wx-bg-top) 0%, rgba(17, 24, 39, 0.8) 50%, var(--wx-bg-bottom) 100%),
+        url('boom.png') no-repeat center center fixed;
+      
+      background-size: cover;
+      /* This blends the color gradient with the image so raindrops shine through */
+      background-blend-mode: overlay; 
+      
+      transition: background-color 1.5s ease;
+    }
+
+    /* App container */
+    .wx-app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* ========== HEADER ========== */
+    .wx-header {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 20;
+    }
+
+    .wx-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.4); /* clearer for bg visibility */
+      color: var(--wx-text-main);
+      font-size: 0.85rem;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: all 0.2s;
+    }
+    .wx-chip:hover { background: rgba(30, 41, 59, 0.6); }
+
+    .wx-title {
+      font-size: 1rem;
+      font-weight: 600;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      display: none;
+    }
+    @media(min-width: 600px) { .wx-title { display: block; } }
+
+    .wx-unit-toggle {
+      display: inline-flex;
+      background: rgba(15, 23, 42, 0.4);
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 3px;
+      backdrop-filter: blur(8px);
+    }
+    .wx-unit-toggle button {
+      border: none;
+      background: transparent;
+      color: var(--wx-text-soft);
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .wx-unit-toggle button.active {
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* ========== MAIN LAYOUT ========== */
+    .wx-main {
+      flex: 1;
+      padding-top: 4.5rem;
+      padding-inline: 1rem;
+      padding-bottom: 1rem;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* ========== HERO ========== */
+    .wx-hero {
+      position: relative;
+      border-radius: 28px;
+      overflow: hidden;
+      padding: 2rem;
+      /* Very subtle glass effect */
+      background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 100%);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 300px;
+    }
+
+    /* Hero Background Animation Layer - Kept for subtle movement effect */
+    .wx-hero-bg {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.1), transparent 70%);
+      opacity: 0.6;
+      z-index: 1; 
+      animation: wx-bg-move 20s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+
+    @keyframes wx-bg-move {
+      0% { transform: scale(1) translate(0, 0); }
+      50% { transform: scale(1.1) translate(-2%, 1%); }
+      100% { transform: scale(1) translate(2%, -1%); }
+    }
+
+    .wx-hero-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      text-align: center;
+      align-items: center;
+    }
+
+    .wx-hero-location { font-size: 1.2rem; font-weight: 500; letter-spacing: 0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+    
+    .wx-hero-condition { 
+      display: flex; align-items: center; gap: 0.8rem; 
+      font-size: 1.1rem; color: var(--wx-text-soft); 
+      background: rgba(0,0,0,0.3); padding: 0.4rem 1rem;
+      border-radius: 20px;
+      margin-top: 0.5rem;
+      backdrop-filter: blur(4px);
+    }
+    
+    /* UPDATED: Hero Icon Image Sizing */
+    .wx-icon-hero {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+    }
+
+    .wx-hero-temp-row { margin-block: 1rem; }
+    .wx-hero-temp {
+      font-size: 6rem;
+      font-weight: 200;
+      line-height: 1;
+      letter-spacing: -3px;
+      text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .wx-hero-meta {
+      display: flex; gap: 1rem; font-size: 0.9rem;
+      color: var(--wx-text-soft);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    /* ========== GRID CARDS ========== */
+    .wx-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .wx-card {
+      background: var(--wx-card-bg);
+      border-radius: 24px;
+      padding: 1.2rem;
+      border: 1px solid var(--wx-card-border);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(12px);
+      transition: transform 0.3s;
+    }
+    .wx-card:hover { transform: translateY(-2px); }
+
+    .wx-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+      color: var(--wx-text-soft);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    /* Hourly */
+    .wx-hourly-list {
+      display: flex;
+      gap: 1rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      scrollbar-width: none;
+    }
+    .wx-hourly-list::-webkit-scrollbar { display: none; }
+
+    .wx-hourly-item {
+      min-width: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255,255,255,0.05);
+      padding: 0.8rem 0.5rem;
+      border-radius: 16px;
+    }
+    .wx-hourly-item-time { font-size: 0.8rem; color: var(--wx-text-soft); }
+    
+    /* UPDATED: Hourly Icon Sizing */
+    .wx-hourly-item-icon { 
+        width: 32px; 
+        height: 32px; 
+        object-fit: contain;
+        margin: 0.2rem 0; 
+    }
+    
+    .wx-hourly-item-temp { font-weight: 700; font-size: 1.1rem; }
+
+    /* Daily */
+    .wx-daily-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .wx-daily-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.8rem;
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+    }
+    .wx-daily-label { flex: 1; font-weight: 500; }
+    
+    /* UPDATED: Daily Icon Sizing */
+    .wx-daily-icon { 
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+        flex: 0 0 40px; 
+    }
+    
+    .wx-daily-temps { flex: 1; text-align: right; display: flex; justify-content: flex-end; gap: 0.8rem; }
+    .wx-daily-temps span:first-child { font-weight: 700; }
+    .wx-daily-temps span:last-child { color: var(--wx-text-soft); }
+
+    /* Radar Placeholder */
+    .wx-radar-body {
+      display: flex; flex-direction: column; gap: 0.8rem;
+    }
+    .wx-radar-map-placeholder {
+      position: relative;
+      height: 180px;
+      border-radius: 16px;
+      background: radial-gradient(circle at center, rgba(56, 189, 248, 0.2), transparent 70%);
+      border: 1px dashed rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .wx-radar-pulse {
+      position: absolute;
+      width: 10px; height: 10px;
+      background: var(--wx-accent);
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+      animation: pulse-orange 2s infinite;
+    }
+    @keyframes pulse-orange {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 60px rgba(249, 115, 22, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+    }
+    .wx-button-outline {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: transparent;
+      color: white;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .wx-button-outline:hover { background: rgba(255,255,255,0.1); }
+
+    /* Barometer */
+    .wx-barometer { display: flex; align-items: center; gap: 1.5rem; justify-content: center; }
+    .wx-barometer-gauge {
+      width: 100px; height: 100px;
+      position: relative;
+      border-radius: 50%;
+      background: conic-gradient(from 180deg, #3b82f6 0deg, #22c55e 90deg, #eab308 180deg);
+      mask: radial-gradient(transparent 55%, black 56%);
+      -webkit-mask: radial-gradient(transparent 55%, black 56%);
+      transform: rotate(-90deg);
+    }
+    .wx-barometer-needle {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 4px; height: 45px;
+      background: white;
+      border-radius: 2px;
+      transform-origin: bottom center;
+      /* Rotate logic is applied to this container, offset by barometer rotation */
+      transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 4px rgba(0,0,0,0.5);
+    }
+    .wx-barometer-info { text-align: left; }
+    .wx-barometer-value { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
+    .wx-barometer-trend { font-size: 0.85rem; color: var(--wx-text-soft); }
+
+    /* Responsive */
+    @media (min-width: 900px) {
+      .wx-main { padding-inline: 10%; padding-top: 6rem; }
+      .wx-grid { 
+        display: grid; 
+        grid-template-columns: repeat(3, 1fr); 
+        gap: 1.5rem; 
+      }
+      .wx-card-daily { grid-column: span 1; grid-row: span 2; }
+      .wx-card-hourly { grid-column: span 2; }
+      .wx-hero-content { align-items: flex-start; text-align: left; padding-left: 2rem; }
+      .wx-hero { align-items: flex-start; }
+    }
+    
+    .loading-pulse { animation: pulse 1.5s infinite; opacity: 0.7; }
+    @keyframes pulse { 50% { opacity: 0.4; } }
+
+  </style>
+</head>
+
+<body>
+  <div class="wx-app">
+    <!-- Top bar -->
+    <header class="wx-header">
+      <button id="wx-locate" class="wx-chip">
+        <i class="ph-bold ph-map-pin"></i>
+        <span>Locate</span>
+      </button>
+
+      <div class="wx-title">NetWatch Weather</div>
+
+      <div class="wx-unit-toggle">
+        <button id="wx-unit-f" class="active">°F</button>
+        <button id="wx-unit-c">°C</button>
+      </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="wx-main">
+      <!-- HERO -->
+      <section class="wx-hero">
+        <div class="wx-hero-bg"></div> <!-- Added Animation Layer -->
+        <div class="wx-hero-content">
+          <div class="wx-hero-location" id="wx-location">Locating...</div>
+
+          <div class="wx-hero-condition">
+            <!-- Image container placeholder -->
+            <div id="wx-condition-icon-container">
+                <i class="ph-fill ph-circle-notch loading-pulse"></i>
+            </div>
+            <span id="wx-condition-text">Fetching...</span>
+          </div>
+
+          <div class="wx-hero-temp-row">
+            <div id="wx-current-temp" class="wx-hero-temp">--°</div>
+          </div>
+
+          <div class="wx-hero-meta">
+            <span id="wx-feels-like">Feels like --°</span>
+            <span>•</span>
+            <span id="wx-hi-lo">H:--° L:--°</span>
+          </div>
+          <div class="wx-hero-meta" style="margin-top:0.5rem">
+             <span id="wx-wind">Wind: --</span>
+             <span>•</span>
+             <span id="wx-precip">Precip: --</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- GRID -->
+      <section class="wx-grid">
+        <!-- HOURLY -->
+        <article class="wx-card wx-card-hourly">
+          <header class="wx-card-header">
+            <i class="ph-bold ph-clock"></i>
+            <h2>Next 24 Hours</h2>
+          </header>
+          <div id="wx-hourly" class="wx-hourly-list">
+            <!-- Populated by JS -->
+            <div class="wx-hourly-item"><div class="loading-pulse" style="width:40px;height:40px;background:white;opacity:0.2;border-radius:50%"></div></div>
+          </div>
+        </article>
+
+        <!-- DAILY -->
+        <article class="wx-card wx-card-daily">
+          <header class="wx-card-header">
+            <i class="ph-bold ph-calendar-blank"></i>
+            <h2>7-Day Forecast</h2>
+          </header>
+          <div id="wx-daily" class="wx-daily-list">
+            <!-- Populated by JS -->
+          </div>
+        </article>
+
+        <!-- RADAR -->
+        <article class="wx-card wx-card-radar">
+          <header class="wx-card-header">
+            <i class="ph-bold ph-radar"></i>
+            <h2>Live Radar</h2>
+          </header>
+          <div class="wx-radar-body">
+            <div class="wx-radar-map-placeholder">
+              <div class="wx-radar-pulse"></div>
+            </div>
+            <a id="wx-radar-link" href="#" target="_blank" class="wx-button-outline">
+              Open Map <i class="ph-bold ph-arrow-square-out"></i>
+            </a>
+          </div>
+        </article>
+
+        <!-- BAROMETER -->
+        <article class="wx-card wx-card-barometer">
+          <header class="wx-card-header">
+            <i class="ph-bold ph-gauge"></i>
+            <h2>Pressure</h2>
+          </header>
+          <div class="wx-barometer">
+            <div style="position:relative; width:100px; height:100px;">
+                <div class="wx-barometer-gauge"></div>
+                <div id="wx-needle" class="wx-barometer-needle"></div>
+            </div>
+            <div class="wx-barometer-info">
+              <div id="wx-pressure-value" class="wx-barometer-value">--</div>
+              <div id="wx-pressure-trend" class="wx-barometer-trend">Steady</div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // --- STATE ---
+    let wxUnit = "F"; // "F" or "C"
+    let wxData = null; // Store raw API data
+    let lastPressure = null;
+
+    // Default: New York
+    const DEFAULT_LAT = 40.7128;
+    const DEFAULT_LON = -74.0060;
+
+    // --- DOM REFERENCES ---
+    const el = (id) => document.getElementById(id);
+    const els = {
+      locate: el("wx-locate"),
+      unitF: el("wx-unit-f"),
+      unitC: el("wx-unit-c"),
+      location: el("wx-location"),
+      conditionText: el("wx-condition-text"),
+      conditionIconContainer: el("wx-condition-icon-container"),
+      currentTemp: el("wx-current-temp"),
+      feelsLike: el("wx-feels-like"),
+      hiLo: el("wx-hi-lo"),
+      wind: el("wx-wind"),
+      precip: el("wx-precip"),
+      hourly: el("wx-hourly"),
+      daily: el("wx-daily"),
+      pressureValue: el("wx-pressure-value"),
+      pressureTrend: el("wx-pressure-trend"),
+      needle: el("wx-needle"),
+      radarLink: el("wx-radar-link")
+    };
+
+    // --- LOGIC ---
+
+    // 1. Weather Codes to FILE PATHS (SVG) & Backgrounds
+    function getWeatherInfo(code, isDay = 1) {
+      // Background gradients (Top, Bottom)
+      const BG_CLEAR_DAY = ["#3b82f6", "#60a5fa"];
+      const BG_CLEAR_NIGHT = ["#0f172a", "#1e293b"];
+      const BG_CLOUDY_DAY = ["#64748b", "#94a3b8"];
+      const BG_CLOUDY_NIGHT = ["#1e293b", "#334155"];
+      const BG_RAIN = ["#334155", "#475569"];
+      const BG_STORM = ["#0f172a", "#312e81"];
+
+      // ICON MAPPING to 'icons/' folder
+      // Based on the NetWatch weather.js mapping
+      const ICON_BASE = "icons/";
+      
+      const map = {
+        0: { desc: "Clear Sky",     file: isDay ? "day.svg" : "night.svg",              bg: isDay ? BG_CLEAR_DAY : BG_CLEAR_NIGHT },
+        1: { desc: "Mainly Clear",  file: isDay ? "cloudy-day-1.svg" : "cloudy-night-1.svg", bg: isDay ? BG_CLEAR_DAY : BG_CLEAR_NIGHT },
+        2: { desc: "Partly Cloudy", file: isDay ? "cloudy-day-1.svg" : "cloudy-night-1.svg", bg: isDay ? BG_CLEAR_DAY : BG_CLEAR_NIGHT },
+        3: { desc: "Overcast",      file: "cloudy.svg",             bg: isDay ? BG_CLOUDY_DAY : BG_CLOUDY_NIGHT },
+        45: { desc: "Fog",          file: "cloudy.svg",             bg: BG_CLOUDY_DAY },
+        48: { desc: "Rime Fog",     file: "cloudy.svg",             bg: BG_CLOUDY_DAY },
+        51: { desc: "Drizzle",      file: "rainy-1.svg",            bg: BG_RAIN },
+        53: { desc: "Drizzle",      file: "rainy-1.svg",            bg: BG_RAIN },
+        55: { desc: "Drizzle",      file: "rainy-1.svg",            bg: BG_RAIN },
+        61: { desc: "Rain",         file: "rainy-4.svg",            bg: BG_RAIN },
+        63: { desc: "Rain",         file: "rainy-4.svg",            bg: BG_RAIN },
+        65: { desc: "Heavy Rain",   file: "rainy-4.svg",            bg: BG_RAIN },
+        71: { desc: "Snow",         file: "snowy-4.svg",            bg: BG_RAIN },
+        73: { desc: "Snow",         file: "snowy-4.svg",            bg: BG_RAIN },
+        75: { desc: "Heavy Snow",   file: "snowy-6.svg",            bg: BG_RAIN },
+        80: { desc: "Showers",      file: "rainy-6.svg",            bg: BG_RAIN },
+        81: { desc: "Showers",      file: "rainy-6.svg",            bg: BG_RAIN },
+        82: { desc: "Showers",      file: "rainy-6.svg",            bg: BG_RAIN },
+        85: { desc: "Snow Showers", file: "snowy-6.svg",            bg: BG_RAIN },
+        86: { desc: "Snow Showers", file: "snowy-6.svg",            bg: BG_RAIN },
+        95: { desc: "Thunderstorm", file: "thunder.svg",            bg: BG_STORM },
+        96: { desc: "Thunderstorm", file: "thunder.svg",            bg: BG_STORM },
+        99: { desc: "Thunderstorm", file: "thunder.svg",            bg: BG_STORM },
+      };
+      
+      const res = map[code] || { desc: "Unknown", file: "weather.svg", bg: BG_CLOUDY_DAY };
+      // prepend path
+      res.path = ICON_BASE + res.file;
+      return res;
+    }
+
+    // 2. Unit Conversion Helpers
+    function getTemp(celsius) {
+      if (wxUnit === "F") return Math.round((celsius * 9) / 5 + 32);
+      return Math.round(celsius);
+    }
+    
+    function getWind(speedMph) {
+      // API returns mph by default in our fetch url
+      if (wxUnit === "F") return `${Math.round(speedMph)} mph`;
+      return `${Math.round(speedMph * 1.60934)} km/h`;
+    }
+
+    // 3. Update Barometer Needle
+    function updateBarometer(pressure) {
+      const minP = 970;
+      const maxP = 1040;
+      // Clamp pressure
+      const clamped = Math.max(minP, Math.min(maxP, pressure));
+      // 0 to 1 scale
+      const ratio = (clamped - minP) / (maxP - minP);
+      // Map to rotation degrees
+      const minDeg = -135;
+      const maxDeg = 45;
+      const deg = minDeg + (ratio * (maxDeg - minDeg));
+      
+      els.needle.style.transform = `translate(-50%, -50%) rotate(${deg}deg)`;
+      els.pressureValue.textContent = `${Math.round(pressure)} hPa`;
+
+      if (lastPressure !== null) {
+        const diff = pressure - lastPressure;
+        if (Math.abs(diff) < 1) els.pressureTrend.textContent = "Stable";
+        else if (diff > 0) els.pressureTrend.textContent = "Rising";
+        else els.pressureTrend.textContent = "Falling";
+      }
+      lastPressure = pressure;
+    }
+
+    // 4. Time Formatting (Timezone aware)
+    function formatTime(isoString, timezone, options) {
+      const date = new Date(isoString);
+      return new Intl.DateTimeFormat('en-US', { timeZone: timezone, ...options }).format(date);
+    }
+
+    // --- MAIN RENDER ---
+    function render() {
+      if (!wxData) return;
+      const { current_weather: curr, hourly, daily, timezone } = wxData;
+      
+      // -- Current --
+      const info = getWeatherInfo(curr.weathercode, curr.is_day);
+      
+      // Update DOM
+      els.location.textContent = wxData.locationName;
+      els.conditionText.textContent = info.desc;
+      // Render IMG tag
+      els.conditionIconContainer.innerHTML = `<img src="${info.path}" alt="${info.desc}" class="wx-icon-hero">`;
+      
+      els.currentTemp.textContent = `${getTemp(curr.temperature)}°`;
+      els.wind.textContent = `Wind: ${getWind(curr.windspeed)}`;
+      
+      // Dynamic Background
+      document.documentElement.style.setProperty('--wx-bg-top', info.bg[0]);
+      document.documentElement.style.setProperty('--wx-bg-bottom', info.bg[1]);
+
+      // Feels Like & Precip
+      const currentHourISO = new Date().toISOString().slice(0, 13);
+      let idx = hourly.time.findIndex(t => t.startsWith(currentHourISO));
+      if(idx === -1) idx = 0;
+
+      const feelsC = hourly.apparent_temperature[idx];
+      els.feelsLike.textContent = `Feels like ${getTemp(feelsC)}°`;
+      
+      const precipProb = hourly.precipitation_probability[idx];
+      els.precip.textContent = `Precip: ${precipProb}%`;
+
+      // High/Low
+      const hi = daily.temperature_2m_max[0];
+      const lo = daily.temperature_2m_min[0];
+      els.hiLo.textContent = `H:${getTemp(hi)}° L:${getTemp(lo)}°`;
+
+      // -- Hourly (Next 24h) --
+      let hourlyHTML = "";
+      for (let i = idx; i < idx + 24 && i < hourly.time.length; i++) {
+        const hCode = hourly.weathercode[i];
+        const hDay = hourly.is_day[i];
+        const hTemp = hourly.temperature_2m[i];
+        const hTime = formatTime(hourly.time[i], timezone, { hour: 'numeric' });
+        const hInfo = getWeatherInfo(hCode, hDay);
+        
+        hourlyHTML += `
+          <div class="wx-hourly-item">
+            <span class="wx-hourly-item-time">${i === idx ? 'Now' : hTime}</span>
+            <img src="${hInfo.path}" alt="${hInfo.desc}" class="wx-hourly-item-icon">
+            <span class="wx-hourly-item-temp">${getTemp(hTemp)}°</span>
+          </div>
+        `;
+      }
+      els.hourly.innerHTML = hourlyHTML;
+
+      // -- Daily (7 days) --
+      let dailyHTML = "";
+      for (let i = 0; i < 7 && i < daily.time.length; i++) {
+        const dCode = daily.weathercode[i];
+        const dMax = daily.temperature_2m_max[i];
+        const dMin = daily.temperature_2m_min[i];
+        const dLabel = i === 0 ? 'Today' : formatTime(daily.time[i], timezone, { weekday: 'long' });
+        const dInfo = getWeatherInfo(dCode, 1); // assume day icon for list
+
+        dailyHTML += `
+          <div class="wx-daily-row">
+            <span class="wx-daily-label">${dLabel}</span>
+            <img src="${dInfo.path}" alt="${dInfo.desc}" class="wx-daily-icon">
+            <div class="wx-daily-temps">
+              <span>${getTemp(dMax)}°</span>
+              <span>${getTemp(dMin)}°</span>
+            </div>
+          </div>
+        `;
+      }
+      els.daily.innerHTML = dailyHTML;
+
+      // -- Barometer --
+      const pres = hourly.surface_pressure[idx] || hourly.pressure_msl[idx];
+      if (pres) updateBarometer(pres);
+      
+      // -- Radar Link --
+      els.radarLink.href = `https://www.windy.com/?${wxData.latitude},${wxData.longitude},10`;
+    }
+
+    // --- API FETCH ---
+    
+    // NEW: IP-based lookup function
+    async function getLocationViaIP() {
+      try {
+        const res = await fetch("https://ipwho.is/");
+        const data = await res.json();
+        if (!data.success) return null;
+        return { 
+            lat: data.latitude, 
+            lon: data.longitude, 
+            name: `${data.city}, ${data.country_code}` 
+        };
+      } catch (e) {
+        console.warn("IP lookup failed", e);
+        return null;
+      }
+    }
+
+    async function loadWeather(useGeo) {
+      let lat = DEFAULT_LAT;
+      let lon = DEFAULT_LON;
+      let name = "New York, USA";
+
+      els.location.textContent = "Locating...";
+
+      let foundLocation = null;
+
+      // 1. Try Browser Geolocation (Precision)
+      if (useGeo && navigator.geolocation) {
+        try {
+          const pos = await new Promise((resolve, reject) => {
+             navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000 });
+          });
+          foundLocation = {
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+              name: "My Location"
+          };
+        } catch (e) {
+          console.warn("GPS denied/timeout. Trying IP...", e);
+        }
+      }
+
+      // 2. Fallback to IP Geolocation (Approximate) if GPS failed
+      if (!foundLocation) {
+          const ipLoc = await getLocationViaIP();
+          if (ipLoc) {
+              foundLocation = ipLoc;
+          } else {
+              name = "New York (Default)";
+          }
+      }
+
+      // Apply found location if we have one
+      if (foundLocation) {
+          lat = foundLocation.lat;
+          lon = foundLocation.lon;
+          name = foundLocation.name;
+      }
+
+      // We fetch in Celsius and MPH (standard met aviation mix), then convert locally
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,surface_pressure,is_day&daily=weathercode,temperature_2m_max,temperature_2m_min&windspeed_unit=mph&timezone=auto`;
+
+      try {
+        const res = await fetch(url);
+        if(!res.ok) throw new Error("API Error");
+        const data = await res.json();
+        wxData = { ...data, locationName: name };
+        render();
+      } catch (err) {
+        console.error(err);
+        els.location.textContent = "Connection Error";
+        els.conditionText.textContent = "Retrying...";
+      }
+    }
+
+    // --- EVENTS ---
+    function setUnit(u) {
+      wxUnit = u;
+      els.unitF.classList.toggle("active", u === "F");
+      els.unitC.classList.toggle("active", u === "C");
+      render();
+    }
+
+    els.unitF.onclick = () => setUnit('F');
+    els.unitC.onclick = () => setUnit('C');
+    els.locate.onclick = () => loadWeather(true);
+
+    // Init
+    loadWeather(true); // try geo on load
+
+  </script>
+</body>
+</html>

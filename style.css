@@ -1,0 +1,42 @@
+body {
+    background: radial-gradient(circle at center, #001d3d 0%, #000814 100%);
+    color: #00d4ff;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.dashboard { display: flex; gap: 30px; }
+
+.gauge {
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 212, 255, 0.3);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 25px rgba(0, 212, 255, 0.2);
+    position: relative;
+}
+
+/* The top glow ring */
+.gauge::after {
+    content: '';
+    position: absolute;
+    top: -2px; left: -2px; right: -2px; bottom: -2px;
+    border-radius: 50%;
+    border: 2px solid #00d4ff;
+    clip-path: inset(0 0 70% 0);
+    filter: drop-shadow(0 0 5px #00d4ff);
+}
+
+.icon { font-size: 1.5rem; margin-bottom: 5px; }
+.value { font-size: 2.2rem; font-weight: 200; color: #fff; line-height: 1; }
+.unit { font-size: 0.8rem; opacity: 0.6; margin-bottom: 5px; }
+.label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; color: #00d4ff; }

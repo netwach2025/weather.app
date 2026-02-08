@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>NetWatch Weather</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="./styles.css" />
+
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+
+<body>
+  <!-- Ambient FX overlay -->
+  <canvas id="wx-fx" style="position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.55"></canvas>
+
+  <div class="wx-app">
+    <header class="wx-header">
+      <button id="wx-locate" class="wx-chip">
+        <i class="ph-bold ph-map-pin"></i>
+        <span>Locate</span>
+      </button>
+
+      <div class="wx-title">NetWatch Weather</div>
+
+      <div class="wx-unit-toggle">
+        <button id="wx-unit-f" class="active">°F</button>
+        <button id="wx-unit-c">°C</button>
+      </div>
+    </header>
+
+    
+    <!-- ALERTS (auto-populated) -->
+    <section id="wx-alerts" class="wx-alerts" hidden>
+      <div class="wx-alerts-bar">
+        <div class="wx-alerts-left">
+          <i class="ph-bold ph-warning-circle"></i>
+          <div class="wx-alerts-title" id="wx-alerts-title">Weather Alert</div>
+        </div>
+        <button class="wx-alerts-close" id="wx-alerts-close" aria-label="Dismiss alerts">
+          <i class="ph-bold ph-x"></i>
+        </button>
+      </div>
+      <div class="wx-alerts-body" id="wx-alerts-body"></div>
+    </section>
+<main class="wx-main">
+      <section class="wx-hero">
+        <div class="wx-hero-bg"></div>
+        <div class="wx-hero-content">
+          <div class="wx-hero-location" id="wx-location">Locating...</div>
+
+          <div class="wx-hero-condition">
+            <div id="wx-condition-icon-container">
+              <i class="ph-fill ph-circle-notch loading-pulse"></i>
+            </div>
+            <span id="wx-condition-text">Fetching...</span>
+          </div>
+
+          <div class="wx-hero-temp-row">
+            <div id="wx-current-temp" class="wx-hero-temp">--°</div>
+          </div>
+
+          <div class="wx-hero-meta">
+            <span id="wx-feels-like">Feels like --°</span>
+            <span>•</span>
+            <span id="wx-hi-lo">H:--° L:--°</span>
+          </div>
+
+          <div class="wx-hero-meta" style="margin-top:0.5rem">
+            <span id="wx-wind">Wind: --</span>
+            <span>•</span>
+            <span id="wx-precip">Precip: --</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="wx-grid">
+        <article class="wx-card wx-card-hourly">
+          <header class="wx-card-header">
+            <i class="ph-bold ph-clock"></i>
+            <h2>Next 24 Hours</h2>
+          </header>
+          <div id="wx-hourly" class="wx-hourly-list">
+            <div class="wx-hourly-item">
+              <div class="loading-pulse" style="width:40px;height:40px;background:white;opacity:0.2;border-radius:50%"></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="wx-card wx-card-daily">
+          <header class="wx-card-header">
+            <i class="ph-bold ph-calendar-blank"></i>
+            <h2>7-Day Forecast</h2>
+          </header>
+          <div id="wx-daily" class="wx-daily-list"></div>
+        </article>
+
+        <article class="wx-card wx-card-radar">
+          <header class="wx-card-header">
+            <i class="ph-bold ph-radar"></i>
+            <h2>Live Radar</h2>
+          </header>
+          <div class="wx-radar-body">
+            <div class="wx-radar-frame">
+              <iframe id="wx-radar-iframe" class="wx-radar-iframe" title="Radar map"
+                loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                allowfullscreen></iframe>
+              <div class="wx-radar-overlay" aria-hidden="true"></div>
+            </div>
+            <a id="wx-radar-link" href="#" target="_blank" class="wx-button-outline">
+              Open Map <i class="ph-bold ph-arrow-square-out"></i>
+            </a>
+          </div>
+        </article>
+
+        <article class="wx-card wx-card-barometer">
+          <header class="wx-card-header">
+            <i class="ph-bold ph-gauge"></i>
+            <h2>Pressure</h2>
+          </header>
+          <div class="wx-barometer">
+            <div class="wx-pressure-gauge" aria-label="Pressure gauge" role="img">
+              <svg class="wx-pressure-svg" viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="wx-pressure-track" cx="60" cy="60" r="45" />
+                <circle id="wx-pressure-arc-glow" class="wx-pressure-arc-glow" cx="60" cy="60" r="45" />
+                <circle id="wx-pressure-arc" class="wx-pressure-arc" cx="60" cy="60" r="45" />
+                <g class="wx-pressure-ticks" aria-hidden="true">
+                  <line x1="60" y1="12" x2="60" y2="18" />
+                  <line x1="26" y1="22" x2="30" y2="27" />
+                  <line x1="12" y1="46" x2="18" y2="48" />
+                  <line x1="12" y1="74" x2="18" y2="72" />
+                  <line x1="26" y1="98" x2="30" y2="93" />
+                  <line x1="60" y1="108" x2="60" y2="102" />
+                  <line x1="94" y1="98" x2="90" y2="93" />
+                  <line x1="108" y1="74" x2="102" y2="72" />
+                  <line x1="108" y1="46" x2="102" y2="48" />
+                  <line x1="94" y1="22" x2="90" y2="27" />
+                </g>
+                <text class="wx-pressure-label" x="20" y="110">Low</text>
+                <text class="wx-pressure-label" x="92" y="110">High</text>
+              </svg>
+
+              <div id="wx-needle" class="wx-barometer-needle"></div>
+              <div id="wx-pressure-dot" class="wx-pressure-dot" aria-hidden="true"></div>
+            </div>
+
+            <div class="wx-barometer-info">
+              <div id="wx-pressure-value" class="wx-barometer-value">--</div>
+              <div id="wx-pressure-trend" class="wx-barometer-trend">Steady</div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <!-- JS (module) -->
+  <script type="module" src="./wx-app.js"></script>
+</body>
+</html>
