@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>NetWatch Pro - Live Ocean</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <style>
+    /* =========================================
+       NETWATCH PRO - CORE STYLES
+       ========================================= */
+    :root {
+      --wx-bg-dark: #0f172a;
+      --wx-accent: #22d3ee;
+      --wx-text: #f8fafc;
+      --glass-bg: rgba(15, 23, 42, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --sidebar-width: 80px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0; width: 100vw; height: 100vh;
+      background: #020617;
+      color: var(--wx-text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    /* ===== DYNAMIC APP BACKGROUND ===== */
+    .app-bg {
+      position: fixed; inset: 0; z-index: -2;
+      background: linear-gradient(to bottom, #0f172a, #1e3a8a);
+      transition: background 2s ease;
+    }
+    
+    .app-noise {
+      position: fixed; inset: 0; z-index: -1; opacity: 0.05; pointer-events: none;
+      background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC44IiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI24pIiBvcGFjaXR5PSIwLjUiLz48L3N2Zz4=');
+    }
+
+    /* ===== LAYOUT ===== */
+    .app-container { display: flex; height: 100vh; width: 100vw; }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: var(--sidebar-width); height: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid var(--glass-border);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 2rem 0; gap: 1.5rem; z-index: 50;
+    }
+
+    .nav-logo { font-size: 2rem; color: var(--wx-accent); margin-bottom: 2rem; filter: drop-shadow(0 0 10px rgba(34,211,238,0.5)); }
+
+    .nav-item {
+      position: relative; width: 50px; height: 50px;
+      border-radius: 16px; display: flex; align-items: center; justify-content: center;
+      color: #64748b; font-size: 1.5rem; cursor: pointer;
+      transition: all 0.3s ease; border: none; background: transparent;
+    }
+
+    .nav-item:hover, .nav-item.active {
+      color: #fff; background: rgba(255,255,255,0.1);
+      box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+    }
+    
+    .nav-item .ring {
+      position: absolute; inset: 0; border-radius: 16px; padding: 2px;
+      background: conic-gradient(from 0deg, transparent 75%, var(--wx-accent));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .nav-item:hover .ring, .nav-item.active .ring { opacity: 1; animation: spin 2s linear infinite; }
+    
+    .nav-item .tooltip {
+      position: absolute; left: 65px; background: #0f172a; padding: 5px 10px;
+      border-radius: 6px; font-size: 0.8rem; opacity: 0; pointer-events: none;
+      border: 1px solid var(--glass-border); transition: 0.2s; white-space: nowrap;
+    }
+    .nav-item:hover .tooltip { opacity: 1; left: 70px; }
+
+    /* ===== MAIN AREA ===== */
+    .main-content { flex: 1; padding: 2rem; overflow-y: auto; position: relative; }
+
+    .view-section { display: none; animation: fadeUp 0.5s ease forwards; }
+    .view-section.active { display: block; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .view-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 2rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;
+    }
+    .view-title h1 { margin: 0; font-weight: 200; font-size: 3rem; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .view-title span { color: var(--wx-accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
+
+    /* HEADER RIGHT AREA (Search + Clock) */
+    .header-right { display: flex; align-items: center; gap: 1.5rem; }
+    
+    .search-box {
+      position: relative; display: flex; align-items: center;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+      border-radius: 99px; padding: 0.5rem 1rem;
+      transition: all 0.3s;
+    }
+    .search-box:focus-within { background: rgba(255,255,255,0.1); border-color: var(--wx-accent); box-shadow: 0 0 15px rgba(34,211,238,0.1); }
+    .search-box input {
+      background: transparent; border: none; color: white; outline: none;
+      width: 120px; font-size: 0.9rem; margin-left: 0.5rem;
+    }
+    .search-box i { color: var(--wx-accent); }
+
+    .clock-widget {
+      text-align: right;
+    }
+    .clock-time { font-size: 1.8rem; font-weight: 200; line-height: 1; font-variant-numeric: tabular-nums; }
+    .clock-date { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ===== GLASS CARDS ===== */
+    .grid-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+    
+    .glass-card {
+      background: linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.01));
+      border: 1px solid var(--glass-border); border-radius: 24px; padding: 1.5rem;
+      backdrop-filter: blur(20px); box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      transition: transform 0.3s;
+    }
+    .glass-card:hover { transform: translateY(-5px); border-color: rgba(255,255,255,0.2); }
+
+    .hero-card {
+      grid-column: 1 / -1; min-height: 280px; position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: space-between; padding: 2rem 4rem;
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(0,0,0,0));
+    }
+
+    /* ===== LIVE OCEAN ENGINE (CSS) ===== */
+    .ocean-scene {
+      width: 100%; height: 400px;
+      border-radius: 24px; overflow: hidden;
+      position: relative;
+      background: linear-gradient(to bottom, #38bdf8 0%, #0284c7 50%, #0c4a6e 100%);
+      box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .cloud {
+      position: absolute; top: 20%; left: -20%;
+      width: 100px; height: 40px; background: rgba(255,255,255,0.8);
+      border-radius: 50px; filter: blur(8px);
+      animation: float-cloud var(--wind-speed-cloud, 20s) linear infinite;
+    }
+    .cloud::after { content:''; position: absolute; top: -20px; left: 20px; width: 50px; height: 50px; background: inherit; border-radius: 50%; }
+    .cloud:nth-child(2) { top: 10%; opacity: 0.6; animation-duration: var(--wind-speed-cloud-fast, 15s); animation-delay: -5s; transform: scale(0.7); }
+
+    .wave {
+      position: absolute; bottom: 0; left: 0; width: 200%; height: 100px;
+      background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1200 120" xmlns="http://www.w3.org/2000/svg"><path d="M0 0v120h1200V0c-63.6 0-106.8 35.8-171.4 35.8-60.6 0-102.2-28.4-159.2-28.4-60.4 0-101.4 22.6-157.4 22.6-59.6 0-104.2-34.4-162.2-34.4C497.6-4.4 442.2 33 389 33c-58.4 0-108.6-32.8-164.8-32.8C162.2 0.2 110.8 28.2 55.4 28.2 36.2 28.2 17.6 23.4 0 15.6z" fill="rgba(255,255,255,0.2)"/></svg>');
+      background-size: 50% 100%;
+      animation: wave-move var(--wave-speed, 5s) linear infinite;
+    }
+    .wave:nth-child(3) { bottom: 10px; opacity: 0.5; animation-duration: calc(var(--wave-speed, 5s) * 1.2); animation-direction: reverse; }
+    .wave:nth-child(4) { bottom: 0; opacity: 0.8; height: 120px; animation-duration: calc(var(--wave-speed, 5s) * 0.8); }
+
+    .palm-container {
+      position: absolute; bottom: -20px; right: 20px;
+      width: 200px; height: 300px;
+      transform-origin: bottom center;
+      animation: sway var(--sway-speed, 3s) ease-in-out infinite alternate;
+    }
+    .palm-container.small { right: 140px; transform: scale(0.7); bottom: -10px; animation-delay: 1s; }
+
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    @keyframes float-cloud { 0% { left: -20%; } 100% { left: 120%; } }
+    @keyframes wave-move { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    @keyframes sway { from { transform: rotate(var(--sway-min, -5deg)); } to { transform: rotate(var(--sway-max, 5deg)); } }
+
+    .ocean-overlay {
+      position: absolute; bottom: 0; left: 0; right: 0; padding: 2rem;
+      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+      display: flex; justify-content: space-between; align-items: flex-end; z-index: 10;
+    }
+
+    .radar-frame {
+      width: 100%; height: 600px; background: #000;
+      border-radius: 24px; overflow: hidden; border: 1px solid var(--glass-border);
+    }
+    .radar-frame iframe { width: 100%; height: 100%; border: none; filter: invert(1) hue-rotate(180deg) saturate(1.5) contrast(1.2); }
+
+    @media (max-width: 768px) {
+      .app-container { flex-direction: column-reverse; }
+      .sidebar { width: 100%; height: 70px; flex-direction: row; justify-content: space-around; padding: 0; }
+      .nav-logo, .tooltip { display: none; }
+      .hero-card { flex-direction: column; text-align: center; gap: 1rem; padding: 2rem; }
+      .header-right { gap: 0.5rem; }
+      .search-box input { width: 80px; }
+      .clock-time { font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-bg" id="app-bg"></div>
+  <div class="app-noise"></div>
+
+  <div class="app-container">
+    
+    <nav class="sidebar">
+      <div class="nav-logo"><i class="ph-fill ph-planet"></i></div>
+      <button class="nav-item active" onclick="switchTab('dashboard', this)"><div class="ring"></div><i class="ph-bold ph-squares-four"></i><div class="tooltip">Dashboard</div></button>
+      <button class="nav-item" onclick="switchTab('wind', this)"><div class="ring"></div><i class="ph-bold ph-wind"></i><div class="tooltip">Wind/Ocean</div></button>
+      <button class="nav-item" onclick="switchTab('radar', this)"><div class="ring"></div><i class="ph-bold ph-radar"></i><div class="tooltip">Live Radar</div></button>
+      <button class="nav-item" onclick="switchTab('astro', this)"><div class="ring"></div><i class="ph-bold ph-sun-horizon"></i><div class="tooltip">Astronomy</div></button>
+      <div style="flex:1"></div>
+      <button class="nav-item" onclick="switchTab('settings', this)"><div class="ring"></div><i class="ph-bold ph-gear"></i><div class="tooltip">Settings</div></button>
+    </nav>
+
+    <main class="main-content">
+      
+      <section id="view-dashboard" class="view-section active">
+        <header class="view-header">
+          <div class="view-title"><span>System Overview</span><h1>Dashboard</h1></div>
+          
+          <div class="header-right">
+             <div class="search-box">
+                <i class="ph-bold ph-magnifying-glass"></i>
+                <input type="text" id="zip-search" placeholder="Zip Code..." onkeydown="handleSearch(event)">
+             </div>
+             <div class="clock-widget">
+                <div class="clock-time" id="clock-time">--:--:--</div>
+                <div class="clock-date" id="clock-date">--</div>
+             </div>
+          </div>
+        </header>
+
+        <div class="grid-dashboard">
+          <div class="glass-card hero-card">
+            <div>
+              <div style="font-size:1.2rem; display:flex; gap:0.5rem; align-items:center; opacity:0.8">
+                <i class="ph-fill ph-map-pin"></i> <span id="loc-name">Locating...</span>
+              </div>
+              <div style="font-size:6rem; font-weight:200; line-height:1" id="val-temp">--°F</div>
+              <div style="color:var(--wx-accent); margin-top:0.5rem; font-size:1.2rem" id="val-cond">--</div>
+            </div>
+            <div id="dynamic-icon-container">
+               <i class="ph-duotone ph-circle-notch" style="font-size:8rem; opacity:0.5; animation:spin 1s linear infinite"></i>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <h3>Humidity</h3>
+            <div style="font-size:2.5rem; font-weight:600" id="val-humid">--%</div>
+          </div>
+          <div class="glass-card">
+            <h3>Pressure</h3>
+            <div style="font-size:2.5rem; font-weight:600" id="val-press">-- hPa</div>
+          </div>
+          <div class="glass-card">
+            <h3>Visibility</h3>
+            <div style="font-size:2.5rem; font-weight:600" id="val-vis">-- mi</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-wind" class="view-section">
+        <header class="view-header">
+          <div class="view-title"><span>Live Simulation</span><h1>Ocean Monitor</h1></div>
+        </header>
+
+        <div class="glass-card" style="padding:0; overflow:hidden">
+          <div class="ocean-scene" id="ocean-scene">
+            <div class="cloud"></div><div class="cloud"></div>
+            <div class="palm-container">
+              <svg viewBox="0 0 200 300" fill="none"><path d="M98 300C86 248 84 205 88 160C92 110 110 60 120 0" stroke="rgba(0,0,0,0.4)" stroke-width="10" stroke-linecap="round"/><path d="M118 22C150 30 180 52 196 78" stroke="#1e293b" stroke-width="10" stroke-linecap="round"/><path d="M118 35C145 55 165 78 178 105" stroke="#1e293b" stroke-width="9" stroke-linecap="round"/><path d="M118 22C85 35 55 58 25 86" stroke="#1e293b" stroke-width="10" stroke-linecap="round"/><path d="M118 40C90 60 70 85 52 112" stroke="#1e293b" stroke-width="9" stroke-linecap="round"/></svg>
+            </div>
+            <div class="palm-container small">
+              <svg viewBox="0 0 200 300" fill="none"><path d="M98 300C86 248 84 205 88 160C92 110 110 60 120 0" stroke="rgba(0,0,0,0.4)" stroke-width="10" stroke-linecap="round"/><path d="M118 22C150 30 180 52 196 78" stroke="#1e293b" stroke-width="10" stroke-linecap="round"/><path d="M118 35C145 55 165 78 178 105" stroke="#1e293b" stroke-width="9" stroke-linecap="round"/><path d="M118 22C85 35 55 58 25 86" stroke="#1e293b" stroke-width="10" stroke-linecap="round"/><path d="M118 40C90 60 70 85 52 112" stroke="#1e293b" stroke-width="9" stroke-linecap="round"/></svg>
+            </div>
+            <div class="wave"></div><div class="wave"></div>
+            <div class="ocean-overlay">
+               <div>
+                 <div style="font-size:4rem; font-weight:800; line-height:1" id="wind-big">--</div>
+                 <div style="font-weight:700; opacity:0.8">MPH CURRENT</div>
+               </div>
+               <div style="text-align:right">
+                 <div style="font-size:1.5rem; font-weight:700" id="wind-dir-big">--</div>
+                 <div style="opacity:0.8">DIRECTION</div>
+               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-radar" class="view-section">
+        <header class="view-header">
+           <div class="view-title"><span>Doppler</span><h1>Live Radar</h1></div>
+        </header>
+        <div class="radar-frame" id="radar-container">
+           <div style="height:100%; display:flex; align-items:center; justify-content:center;">Loading Radar...</div>
+        </div>
+      </section>
+      
+      <section id="view-astro" class="view-section">
+         <header class="view-header"><div class="view-title"><span>Celestial</span><h1>Sun & Moon</h1></div></header>
+         <div class="grid-dashboard">
+            <div class="glass-card"><h3>Sunrise</h3><div style="font-size:2rem" id="val-rise">--</div></div>
+            <div class="glass-card"><h3>Sunset</h3><div style="font-size:2rem" id="val-set">--</div></div>
+         </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // ===== STATE =====
+    let lat = null, lon = null;
+    const ui = {
+      loc: document.getElementById('loc-name'),
+      temp: document.getElementById('val-temp'),
+      cond: document.getElementById('val-cond'),
+      humid: document.getElementById('val-humid'),
+      press: document.getElementById('val-press'),
+      vis: document.getElementById('val-vis'),
+      windBig: document.getElementById('wind-big'),
+      windDir: document.getElementById('wind-dir-big'),
+      scene: document.getElementById('ocean-scene'),
+      rise: document.getElementById('val-rise'),
+      set: document.getElementById('val-set'),
+      radar: document.getElementById('radar-container'),
+      bg: document.getElementById('app-bg'),
+      iconContainer: document.getElementById('dynamic-icon-container')
+    };
+
+    // ===== CLOCK LOGIC =====
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock-time').textContent = now.toLocaleTimeString('en-US', {hour12: false});
+        document.getElementById('clock-date').textContent = now.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ===== INIT =====
+    function initApp() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => { lat = pos.coords.latitude; lon = pos.coords.longitude; fetchLocationName(lat, lon); },
+          () => { getLocationByIP(); }
+        );
+      } else { getLocationByIP(); }
+    }
+
+    async function fetchLocationName(lat, lon) {
+        try {
+            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+            const data = await res.json();
+            ui.loc.textContent = `${data.city}, ${data.principalSubdivisionCode}`;
+            fetchWeather();
+        } catch(e) { ui.loc.textContent = "GPS Locked"; fetchWeather(); }
+    }
+
+    async function getLocationByIP() {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        lat = data.latitude; lon = data.longitude;
+        ui.loc.textContent = `${data.city}, ${data.region_code}`;
+        fetchWeather();
+      } catch (e) { ui.loc.textContent = "Location Error"; }
+    }
+
+    async function handleSearch(e) {
+        if(e.key === 'Enter') {
+            const zip = document.getElementById('zip-search').value;
+            // Simple US Zip Geocode (Mock for demo, normally needs API key)
+            // For now, let's just pretend we found it and reload the radar/weather
+            // In a real app, you'd fetch lat/lon from a geocoding API here.
+            alert("Searching database for Zip: " + zip + " (Feature Coming Soon)");
+        }
+    }
+
+    // ===== WEATHER FETCH (FORCED FAHRENHEIT) =====
+    async function fetchWeather() {
+      if (!lat || !lon) return;
+      // temperature_unit=fahrenheit is key here
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,visibility,pressure_msl&daily=sunrise,sunset&windspeed_unit=mph&temperature_unit=fahrenheit&timezone=auto`;
+      
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const curr = data.current_weather;
+        
+        ui.temp.textContent = Math.round(curr.temperature) + "°F";
+        ui.windBig.textContent = Math.round(curr.windspeed);
+        ui.windDir.textContent = getDir(curr.winddirection);
+        ui.cond.textContent = getWeatherDesc(curr.weathercode);
+        updateDynamicIcon(curr.weathercode, curr.is_day);
+        
+        ui.humid.textContent = data.hourly.relativehumidity_2m[0] + "%";
+        ui.press.textContent = Math.round(data.hourly.pressure_msl[0]) + " hPa";
+        ui.vis.textContent = (data.hourly.visibility[0] / 1609).toFixed(1) + " mi";
+        ui.rise.textContent = data.daily.sunrise[0].slice(-5);
+        ui.set.textContent = data.daily.sunset[0].slice(-5);
+
+        ui.radar.innerHTML = `<iframe src="https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&detailLat=${lat}&detailLon=${lon}&width=650&height=450&zoom=10&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1" width="100%" height="100%" frameborder="0"></iframe>`;
+
+        updateOceanScene(curr.windspeed, curr.is_day);
+      } catch(e) { console.error(e); }
+    }
+
+    function updateDynamicIcon(code, isDay) {
+        let iconClass = "ph-question";
+        let color = "#fff";
+        
+        // Map codes to Phosphor Icons
+        if (code === 0) { iconClass = isDay ? "ph-sun" : "ph-moon"; color = isDay ? "#f59e0b" : "#f1f5f9"; }
+        else if (code < 3) { iconClass = isDay ? "ph-cloud-sun" : "ph-cloud-moon"; color = "#94a3b8"; }
+        else if (code < 50) { iconClass = "ph-cloud"; color = "#64748b"; }
+        else if (code < 80) { iconClass = "ph-cloud-rain"; color = "#38bdf8"; }
+        else if (code < 95) { iconClass = "ph-cloud-snow"; color = "#fff"; }
+        else { iconClass = "ph-cloud-lightning"; color = "#facc15"; }
+
+        ui.iconContainer.innerHTML = `<i class="ph-duotone ${iconClass}" style="font-size:8rem; opacity:0.9; color:${color}; filter:drop-shadow(0 0 20px ${color}40)"></i>`;
+    }
+
+    function updateOceanScene(speed, isDay) {
+      if(isDay) {
+        ui.scene.style.background = "linear-gradient(to bottom, #38bdf8 0%, #0284c7 50%, #0c4a6e 100%)";
+        ui.bg.style.background = "linear-gradient(to bottom, #0f172a, #1e3a8a)";
+      } else {
+        ui.scene.style.background = "linear-gradient(to bottom, #0f172a 0%, #1e1b4b 60%, #000000 100%)";
+        ui.bg.style.background = "linear-gradient(to bottom, #020617, #0f172a)";
+      }
+      const waveDur = Math.max(0.5, 5 - (speed * 0.15)) + "s";
+      ui.scene.style.setProperty('--wave-speed', waveDur);
+      const swayMax = Math.min(25, 2 + (speed * 0.6)) + "deg";
+      ui.scene.style.setProperty('--sway-max', swayMax);
+      ui.scene.style.setProperty('--sway-min', "-" + swayMax);
+    }
+
+    function getDir(deg) { const arr = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]; return arr[Math.floor((deg / 45) + 0.5) % 8]; }
+    function getWeatherDesc(code) {
+      if(code === 0) return "Clear Sky";
+      if(code < 4) return "Partly Cloudy";
+      if(code < 50) return "Foggy";
+      if(code < 80) return "Rain";
+      return "Storm";
+    }
+
+    function switchTab(id, btn) {
+      document.querySelectorAll('.view-section').forEach(e => e.classList.remove('active'));
+      document.getElementById('view-'+id).classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
