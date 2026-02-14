@@ -4,484 +4,1284 @@
   <meta charset="utf-8" />
   <title>NetWatch Weather</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  
+
   <style>
-    /* ========== BASE ========== */
-    :root {
+    /* =========================================
+       NETWATCH WEATHER — GLASS + MOTION EDITION
+       Single-file build (HTML/CSS/JS)
+       ========================================= */
+
+    :root{
+      /* Dynamic, set by JS based on weather */
+      --wx-accent: #22d3ee;
       --wx-bg-top: #274690;
       --wx-bg-bottom: #020617;
+
       --wx-text-main: #f8fafc;
-      --wx-text-soft: #94a3b8;
-      --wx-accent: #f97316;
+      --wx-text-soft: rgba(248,250,252,0.68);
+
+      --wx-glass-strong: rgba(255,255,255,0.14);
+      --wx-glass-soft: rgba(255,255,255,0.08);
+      --wx-glass-border: rgba(255,255,255,0.22);
+
+      --wx-shadow-strong: 0 26px 80px rgba(0,0,0,0.48);
+      --wx-shadow-card: 0 18px 55px rgba(0,0,0,0.40);
+
+      --wx-blur-strong: 30px;
+      --wx-blur-card: 26px;
+
+      --wx-needle-angle: -40deg;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
 
-    body {
-      margin: 0;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: var(--wx-text-main);
-      background: 
-        radial-gradient(circle at top, var(--wx-bg-top) 0%, rgba(17, 24, 39, 0.8) 50%, var(--wx-bg-bottom) 100%),
-        url('boom.png') no-repeat center center fixed;
-      background-size: cover;
-      background-blend-mode: overlay; 
-      transition: background-color 1.5s ease;
+    body{
+      margin:0;
+      width:100vw;
+      height:100vh;
+      overflow:hidden;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:var(--wx-text-main);
+      background: #020617;
     }
 
-    .wx-app {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      position: relative;
+    /* ===== Background stage (hourly crossfade) ===== */
+    .wx-bg-stage{
+      position:fixed;
+      inset:0;
+      z-index:-10;
+      overflow:hidden;
+      background:
+        radial-gradient(circle at top, var(--wx-bg-top) 0%, rgba(17, 24, 39, 0.85) 50%, var(--wx-bg-bottom) 100%);
+    }
+    .wx-bg-layer{
+      position:absolute;
+      inset:-6%;
+      background-position:center;
+      background-size:cover;
+      background-repeat:no-repeat;
+      filter:saturate(115%) contrast(105%);
+      transform:scale(1.08);
+      will-change:opacity,transform,filter;
+      animation: wx-bg-drift 28s ease-in-out infinite;
+    }
+    .wx-bg-a{ opacity:1; }
+    .wx-bg-b{ opacity:0; }
+
+    @keyframes wx-bg-drift{
+      0%   { transform: scale(1.10) translate3d(-1.5%, -1.2%, 0); filter: saturate(115%) contrast(105%) blur(0px); }
+      50%  { transform: scale(1.14) translate3d(1.2%, 0.8%, 0);  filter: saturate(125%) contrast(108%) blur(0.2px); }
+      100% { transform: scale(1.10) translate3d(-1.0%, 1.1%, 0); filter: saturate(115%) contrast(105%) blur(0px); }
     }
 
-    /* ========== HEADER ========== */
-    .wx-header {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      padding: 1rem 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 20;
+    /* vignette + glow */
+    .wx-bg-vignette{
+      position:absolute; inset:0;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(255,255,255,0.12), transparent 55%),
+        radial-gradient(circle at 70% 70%, rgba(34,211,238,0.12), transparent 60%),
+        radial-gradient(circle at 50% 120%, rgba(0,0,0,0.62), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.62));
+      pointer-events:none;
     }
 
-    .wx-chip, .wx-unit-toggle {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      backdrop-filter: blur(18px) saturate(160%);
-      -webkit-backdrop-filter: blur(18px) saturate(160%);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
+    /* optional grain: put a small tiling PNG at assets/noise.png */
+    .wx-bg-noise{
+      position:absolute; inset:-20%;
+      background-image:url("assets/noise.png");
+      opacity:0.10;
+      mix-blend-mode:overlay;
+      animation: wx-noise 3.5s steps(2) infinite;
+      pointer-events:none;
     }
-    
-    .wx-chip { padding: 0.5rem 1rem; color: var(--wx-text-main); font-size: 0.85rem; cursor: pointer; gap: 0.5rem; transition: background 0.2s; }
-    .wx-chip:hover { background: rgba(255, 255, 255, 0.15); }
-
-    .wx-unit-toggle { padding: 3px; }
-    .wx-unit-toggle button {
-      border: none; background: transparent; color: var(--wx-text-soft);
-      font-size: 0.8rem; padding: 4px 12px; border-radius: 999px;
-      cursor: pointer; font-weight: 600; transition: all 0.2s;
-    }
-    .wx-unit-toggle button.active {
-      background: rgba(255, 255, 255, 0.15); color: white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    @keyframes wx-noise{
+      0% { transform: translate3d(0,0,0); }
+      100% { transform: translate3d(-5%, 3%, 0); }
     }
 
-    /* ========== MAIN LAYOUT ========== */
-    .wx-main {
-      flex: 1;
-      padding-top: 5rem;
-      padding-inline: 1rem;
-      padding-bottom: 2rem;
-      overflow-y: auto;
-      overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
+    /* ===== Light particles “video-ish” feel ===== */
+    .wx-particles{
+      position:absolute; inset:0;
+      pointer-events:none;
+      opacity:0.35;
+      filter: blur(0.2px);
+      mix-blend-mode:screen;
+    }
+    .wx-particles span{
+      position:absolute;
+      width:3px;height:3px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.9);
+      box-shadow:0 0 18px rgba(34,211,238,0.25);
+      animation: wx-float 10s linear infinite;
+      opacity:0.0;
+    }
+    @keyframes wx-float{
+      0%{ transform:translate3d(0, 30px, 0); opacity:0; }
+      12%{ opacity:0.8; }
+      80%{ opacity:0.35; }
+      100%{ transform:translate3d(0, -140px, 0); opacity:0; }
     }
 
-    /* ========== HERO ========== */
-    .wx-hero {
-      position: relative;
-      border-radius: 32px;
-      overflow: hidden;
-      padding: 1.5rem; /* Reduced padding to fit orbs better */
-      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 40%, rgba(255,255,255,0.02) 100%);
-      backdrop-filter: blur(30px) saturate(160%);
-      -webkit-backdrop-filter: blur(30px) saturate(160%);
-      border: 1px solid rgba(255,255,255,0.25);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.4);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 380px;
+    /* ===== App container ===== */
+    .wx-app{
+      width:100%;
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      position:relative;
     }
 
-    .wx-hero-bg {
-      position: absolute; inset: 0;
-      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.1), transparent 70%);
-      opacity: 0.6; z-index: 1; 
+    /* ===== Header ===== */
+    .wx-header{
+      position:absolute;
+      top:0; left:0; right:0;
+      padding: 1rem 1.25rem;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      z-index:20;
+    }
+
+    .wx-title{
+      font-size:1rem;
+      font-weight:700;
+      letter-spacing:0.4px;
+      text-shadow:0 2px 10px rgba(0,0,0,0.5);
+      display:none;
+    }
+    @media(min-width:600px){ .wx-title{ display:block; } }
+
+    .wx-chip{
+      display:inline-flex;
+      align-items:center;
+      gap:0.5rem;
+      padding:0.55rem 1rem;
+      border-radius:999px;
+      border:1px solid var(--wx-glass-border);
+      background: linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.06));
+      color:var(--wx-text-main);
+      font-size:0.85rem;
+      cursor:pointer;
+
+      backdrop-filter: blur(18px) saturate(170%);
+      -webkit-backdrop-filter: blur(18px) saturate(170%);
+
+      box-shadow:0 10px 28px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.25);
+      transition: transform .2s ease, background .2s ease;
+    }
+    .wx-chip:hover{
+      transform: translateY(-1px);
+      background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.07));
+    }
+
+    .wx-unit-toggle{
+      display:inline-flex;
+      border-radius:999px;
+      border:1px solid var(--wx-glass-border);
+      background: linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.06));
+      padding:4px;
+
+      backdrop-filter: blur(18px) saturate(170%);
+      -webkit-backdrop-filter: blur(18px) saturate(170%);
+
+      box-shadow:0 10px 28px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.25);
+    }
+    .wx-unit-toggle button{
+      border:none;
+      background:transparent;
+      color:rgba(248,250,252,0.65);
+      font-size:0.8rem;
+      padding:6px 12px;
+      border-radius:999px;
+      cursor:pointer;
+      font-weight:800;
+      letter-spacing:0.3px;
+      transition: background .2s ease, color .2s ease, transform .2s ease;
+    }
+    .wx-unit-toggle button.active{
+      background: rgba(255,255,255,0.18);
+      color: #ffffff;
+      box-shadow:0 8px 18px rgba(0,0,0,0.22);
+    }
+    .wx-unit-toggle button:hover{ transform: translateY(-1px); }
+
+    /* ===== Main layout ===== */
+    .wx-main{
+      flex:1;
+      padding-top:4.75rem;
+      padding-inline:1rem;
+      padding-bottom:1rem;
+      overflow-y:auto;
+      overflow-x:hidden;
+      display:flex;
+      flex-direction:column;
+      gap:1rem;
+    }
+
+    /* ===== Hero ===== */
+    .wx-hero{
+      position:relative;
+      border-radius:32px;
+      overflow:hidden;
+      padding: 2.3rem 1.6rem;
+
+      background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
+      border:1px solid rgba(255,255,255,0.26);
+      box-shadow: var(--wx-shadow-strong), inset 0 1px 0 rgba(255,255,255,0.35);
+
+      backdrop-filter: blur(var(--wx-blur-strong)) saturate(175%);
+      -webkit-backdrop-filter: blur(var(--wx-blur-strong)) saturate(175%);
+      min-height: 320px;
+    }
+    .wx-hero::before{
+      content:"";
+      position:absolute;
+      inset:-30% -50%;
+      background: linear-gradient(120deg, rgba(255,255,255,0.45), rgba(255,255,255,0.10), transparent 58%);
+      transform: rotate(18deg) translateX(-25%);
+      opacity:0.45;
+      animation: wx-sheen 6.5s ease-in-out infinite;
+      pointer-events:none;
+    }
+    @keyframes wx-sheen{
+      0%{ transform: rotate(18deg) translateX(-30%); opacity:0.30; }
+      50%{ transform: rotate(18deg) translateX(18%); opacity:0.60; }
+      100%{ transform: rotate(18deg) translateX(-30%); opacity:0.30; }
+    }
+
+    .wx-hero-bg{
+      position:absolute;
+      inset:0;
+      background: radial-gradient(circle at top, rgba(255,255,255,0.12), transparent 70%);
+      opacity:0.65;
+      z-index:1;
       animation: wx-bg-move 20s ease-in-out infinite alternate;
-      pointer-events: none;
+      pointer-events:none;
     }
-    @keyframes wx-bg-move {
-      0% { transform: scale(1) translate(0, 0); }
-      100% { transform: scale(1.1) translate(2%, -1%); }
-    }
-
-    .wx-hero-content {
-      position: relative; z-index: 2;
-      display: flex; flex-direction: column;
-      align-items: center; text-align: center;
-      width: 100%;
-      gap: 0.2rem; /* Tighter gap */
+    @keyframes wx-bg-move{
+      0%{ transform:scale(1) translate(0,0); }
+      50%{ transform:scale(1.08) translate(-2%,1%); }
+      100%{ transform:scale(1) translate(2%,-1%); }
     }
 
-    .wx-hero-location { font-size: 1.3rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-bottom: 0.5rem; }
-    
-    .wx-hero-condition { 
-      display: flex; align-items: center; gap: 0.5rem; 
-      font-size: 1rem; color: var(--wx-text-soft); 
-      background: rgba(0,0,0,0.3); padding: 0.3rem 0.8rem;
-      border-radius: 99px; backdrop-filter: blur(4px);
-    }
-    .wx-icon-hero { width: 24px; height: 24px; object-fit: contain; }
-
-    .wx-hero-temp {
-      font-size: 5.5rem; font-weight: 200; line-height: 1;
-      letter-spacing: -3px; text-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      margin: 0.5rem 0;
+    .wx-hero-content{
+      position:relative;
+      z-index:2;
+      display:flex;
+      flex-direction:column;
+      gap:0.55rem;
+      text-align:center;
+      align-items:center;
     }
 
-    .wx-hero-meta {
-      display: flex; gap: 1rem; font-size: 0.9rem;
-      color: var(--wx-text-soft); margin-bottom: 1.5rem;
+    .wx-hero-location{
+      font-size:1.18rem;
+      font-weight:650;
+      letter-spacing:0.6px;
+      text-shadow:0 2px 12px rgba(0,0,0,0.55);
     }
 
-    /* ========== INTERACTIVE GLASS ORBS ========== */
-    .wx-orb-row {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      align-items: center;
-      flex-wrap: wrap;
-      width: 100%;
-      margin-top: 0.5rem;
-      perspective: 1000px; /* Essential for 3D flip */
+    .wx-hero-condition{
+      display:flex;
+      align-items:center;
+      gap:0.8rem;
+      font-size:1.05rem;
+      color:var(--wx-text-soft);
+      background: rgba(0,0,0,0.26);
+      padding:0.45rem 1rem;
+      border-radius: 999px;
+      margin-top:0.45rem;
+
+      border:1px solid rgba(255,255,255,0.14);
+      backdrop-filter: blur(14px) saturate(160%);
+      -webkit-backdrop-filter: blur(14px) saturate(160%);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.18);
     }
 
-    /* Container for the flip effect */
-    .wx-orb-container {
-      width: 110px;
-      height: 110px;
-      position: relative;
-      cursor: pointer;
-      border-radius: 50%;
+    .wx-icon-hero{ width:34px;height:34px; object-fit:contain; }
+
+    .wx-hero-temp-row{ margin-block: 1rem; }
+    .wx-hero-temp{
+      font-size: 6rem;
+      font-weight: 200;
+      line-height: 1;
+      letter-spacing: -3px;
+      text-shadow: 0 6px 24px rgba(0,0,0,0.4);
     }
 
-    /* The flipper wrapper */
-    .wx-orb-flipper {
-      width: 100%;
-      height: 100%;
-      position: relative;
-      transform-style: preserve-3d;
-      transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
-      border-radius: 50%;
+    .wx-hero-meta{
+      display:flex;
+      gap: 1rem;
+      font-size: 0.92rem;
+      color: rgba(248,250,252,0.72);
+      text-shadow:0 1px 10px rgba(0,0,0,0.55);
+      flex-wrap:wrap;
+      justify-content:center;
     }
 
-    /* Trigger flip on class add */
-    .wx-orb-container.flipped .wx-orb-flipper {
-      transform: rotateY(-180deg); /* Spin to right */
+    /* ===== Grid Cards ===== */
+    .wx-grid{
+      display:flex;
+      flex-direction:column;
+      gap:1rem;
+    }
+    .wx-card{
+      background: linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.05));
+      border-radius: 24px;
+      padding: 1.2rem;
+      border: 1px solid var(--wx-glass-border);
+
+      backdrop-filter: blur(var(--wx-blur-card)) saturate(180%);
+      -webkit-backdrop-filter: blur(var(--wx-blur-card)) saturate(180%);
+
+      box-shadow: var(--wx-shadow-card), inset 0 1px 0 rgba(255,255,255,0.28);
+      transition: transform .28s ease, box-shadow .28s ease;
+    }
+    .wx-card:hover{
+      transform: translateY(-4px);
+      box-shadow: 0 26px 72px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.32);
     }
 
-    /* Shared style for Front and Back faces */
-    .wx-orb-face {
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      backface-visibility: hidden; /* Hides the back when facing away */
-      -webkit-backface-visibility: hidden;
-      
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-
-      /* Glass Style */
-      background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.2), rgba(255,255,255,0.05) 60%);
-      border: 1px solid rgba(255,255,255,0.25);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
-      backdrop-filter: blur(12px);
+    .wx-card-header{
+      display:flex;
+      align-items:center;
+      gap:0.6rem;
+      margin-bottom:1rem;
+      color: rgba(248,250,252,0.65);
+      font-size:0.9rem;
+      text-transform:uppercase;
+      letter-spacing:1px;
+      font-weight:800;
     }
 
-    /* Front Face Specifics */
-    .wx-orb-front {
-      z-index: 2;
-      transform: rotateY(0deg);
+    /* ===== Hourly ===== */
+    .wx-hourly-list{
+      display:flex;
+      gap:1rem;
+      overflow-x:auto;
+      padding-bottom:0.5rem;
+      scrollbar-width:none;
+    }
+    .wx-hourly-list::-webkit-scrollbar{ display:none; }
+
+    .wx-hourly-item{
+      min-width:74px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:0.5rem;
+      background: rgba(255,255,255,0.06);
+      padding: 0.85rem 0.55rem;
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,0.10);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.14);
+    }
+    .wx-hourly-item-time{ font-size:0.8rem; color: rgba(248,250,252,0.65); }
+    .wx-hourly-item-icon{ width:32px;height:32px; object-fit:contain; margin:0.15rem 0; }
+    .wx-hourly-item-temp{ font-weight:900; font-size:1.1rem; }
+
+    /* ===== Daily ===== */
+    .wx-daily-list{ display:flex; flex-direction:column; gap:0.8rem; }
+    .wx-daily-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0.6rem 0.8rem;
+      background: rgba(255,255,255,0.04);
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,0.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+    .wx-daily-label{ flex:1; font-weight:650; }
+    .wx-daily-icon{ width:32px;height:32px; object-fit:contain; flex:0 0 40px; }
+    .wx-daily-temps{ flex:1; text-align:right; display:flex; justify-content:flex-end; gap:0.8rem; }
+    .wx-daily-temps span:first-child{ font-weight:900; }
+    .wx-daily-temps span:last-child{ color: rgba(248,250,252,0.60); }
+
+    /* ===== Radar Placeholder ===== */
+    .wx-radar-body{ display:flex; flex-direction:column; gap:0.8rem; }
+    .wx-radar-map-placeholder{
+      position:relative;
+      height:180px;
+      border-radius: 16px;
+      background: radial-gradient(circle at center, rgba(34,211,238,0.22), transparent 70%);
+      border: 1px dashed rgba(255,255,255,0.22);
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden;
+    }
+    .wx-radar-pulse{
+      position:absolute;
+      width:10px;height:10px;
+      background: var(--wx-accent);
+      border-radius:50%;
+      box-shadow:0 0 0 0 rgba(34,211,238,0.6);
+      animation: pulse-cyan 2s infinite;
+    }
+    @keyframes pulse-cyan{
+      0%{ transform:scale(0.95); box-shadow:0 0 0 0 rgba(34,211,238,0.55); }
+      70%{ transform:scale(1); box-shadow:0 0 0 60px rgba(34,211,238,0); }
+      100%{ transform:scale(0.95); box-shadow:0 0 0 0 rgba(34,211,238,0); }
     }
 
-    /* Back Face Specifics */
-    .wx-orb-back {
-      transform: rotateY(-180deg);
-      background: radial-gradient(circle at 30% 25%, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.8)); /* Darker for contrast */
-      z-index: 1;
+    .wx-button-outline{
+      width:100%;
+      padding:0.85rem;
+      border:1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.06);
+      color:white;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight:700;
+      letter-spacing:0.2px;
+      transition: background 0.2s ease, transform .2s ease;
+      text-align:center;
+      text-decoration:none;
+      display:inline-block;
+
+      backdrop-filter: blur(14px) saturate(160%);
+      -webkit-backdrop-filter: blur(14px) saturate(160%);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.18);
+    }
+    .wx-button-outline:hover{ background: rgba(255,255,255,0.10); transform: translateY(-1px); }
+
+    /* ===== Barometer ===== */
+    .wx-barometer{ display:flex; align-items:center; gap:1.5rem; justify-content:center; }
+    .wx-barometer-gauge{
+      width:100px;height:100px;
+      position:relative;
+      border-radius:50%;
+      background: conic-gradient(from 180deg, #3b82f6 0deg, #22c55e 90deg, #eab308 180deg);
+      mask: radial-gradient(transparent 55%, black 56%);
+      -webkit-mask: radial-gradient(transparent 55%, black 56%);
+      transform: rotate(-90deg);
+      opacity:0.9;
+    }
+    .wx-barometer-needle{
+      position:absolute;
+      top:50%; left:50%;
+      width:4px;height:45px;
+      background:white;
+      border-radius:2px;
+      transform-origin: bottom center;
+      transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow:0 0 10px rgba(0,0,0,0.45);
+    }
+    .wx-barometer-info{ text-align:left; }
+    .wx-barometer-value{ font-size:1.5rem; font-weight:900; line-height:1.2; }
+    .wx-barometer-trend{ font-size:0.85rem; color: rgba(248,250,252,0.65); }
+
+    /* ===== Glass Orbs HUD ===== */
+    .wx-orb-row{
+      display:flex;
+      gap:16px;
+      justify-content:center;
+      align-items:center;
+      flex-wrap:wrap;
+      margin-top: 1.05rem;
+    }
+    .wx-orb{
+      width:118px;
+      height:118px;
+      border-radius:999px;
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+
+      background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.28), rgba(255,255,255,0.10) 55%, rgba(255,255,255,0.06) 100%);
+      border: 1px solid rgba(255,255,255,0.28);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.35);
+
+      backdrop-filter: blur(22px) saturate(175%);
+      -webkit-backdrop-filter: blur(22px) saturate(175%);
+    }
+    .wx-orb::before{
+      content:"";
+      position:absolute;
+      inset:-30% -50%;
+      background: linear-gradient(120deg, rgba(255,255,255,0.35), rgba(255,255,255,0.08), transparent 55%);
+      transform: rotate(18deg) translateX(-20%);
+      opacity:0.55;
+      animation: wx-orb-sheen 6s ease-in-out infinite;
+      pointer-events:none;
+    }
+    @keyframes wx-orb-sheen{
+      0%{ transform: rotate(18deg) translateX(-28%); opacity:0.35; }
+      50%{ transform: rotate(18deg) translateX(18%); opacity:0.6; }
+      100%{ transform: rotate(18deg) translateX(-28%); opacity:0.35; }
     }
 
-    /* Orb Content Styling */
-    .wx-orb-icon { font-size: 1.2rem; color: rgba(255,255,255,0.9); margin-bottom: 4px; }
-    .wx-orb-value { font-weight: 800; font-size: 1.3rem; color: #fff; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-    .wx-orb-label { font-size: 0.65rem; letter-spacing: 1px; text-transform: uppercase; color: var(--wx-accent); margin-top: 2px; }
-    
-    /* Back content specific */
-    .wx-orb-detail-icon { font-size: 2rem; color: var(--wx-text-main); margin-bottom: 5px; }
-    .wx-orb-detail-text { font-size: 0.8rem; color: var(--wx-text-soft); font-weight: 500; }
-
-    /* Animation for Windmill */
-    .spin-slow { animation: spin 2s linear infinite; }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-
-    /* Decorative sheen lines */
-    .wx-orb-lines {
-      position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+    /* The blue lines inside active: constantly moving, fading, returning */
+    .wx-orb-lines{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      opacity:0.95;
+      mix-blend-mode: screen;
+      filter: blur(0.2px);
     }
-    .wx-orb-lines span {
-      position: absolute; left: 15%; right: 15%; height: 1px;
-      background: rgba(255,255,255,0.4);
-      animation: scan 3s linear infinite; opacity: 0;
+    .wx-orb-lines span{
+      position:absolute;
+      left:16%;
+      right:16%;
+      height:3px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(34,211,238,0), rgba(34,211,238,0.95), rgba(34,211,238,0));
+      opacity:0;
+      transform: translateY(42px);
+      animation: wx-line-rise 2.2s linear infinite;
     }
-    .wx-orb-lines span:nth-child(1) { top: 30%; animation-delay: 0s; }
-    .wx-orb-lines span:nth-child(2) { top: 50%; animation-delay: 1s; }
-    .wx-orb-lines span:nth-child(3) { top: 70%; animation-delay: 2s; }
-
-    @keyframes scan {
-      0% { opacity: 0; transform: scaleX(0); }
-      50% { opacity: 1; transform: scaleX(1); }
-      100% { opacity: 0; transform: scaleX(0); }
+    .wx-orb-lines span:nth-child(1){ animation-delay:0s; }
+    .wx-orb-lines span:nth-child(2){ animation-delay:0.55s; }
+    .wx-orb-lines span:nth-child(3){ animation-delay:1.1s; }
+    @keyframes wx-line-rise{
+      0%   { opacity:0; transform: translateY(52px) scaleX(0.95); }
+      12%  { opacity:0.85; }
+      60%  { opacity:0.25; }
+      100% { opacity:0; transform: translateY(-52px) scaleX(1.08); }
     }
 
-    /* ========== GRID CARDS ========== */
-    .wx-grid { display: flex; flex-direction: column; gap: 1rem; }
-    
-    .wx-card {
-      background: linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
-      border-radius: 24px; padding: 1.2rem;
-      border: 1px solid rgba(255,255,255,0.18);
-      backdrop-filter: blur(24px) saturate(180%);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+    .wx-orb-content{
+      position:relative;
+      z-index:2;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      text-align:center;
+      width:100%;
+      padding: 10px 8px;
     }
-    .wx-card-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; color: var(--wx-text-soft); font-size: 0.9rem; text-transform: uppercase; font-weight: 600; }
+    .wx-orb-top{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      color: rgba(255,255,255,0.92);
+      font-size: 14px;
+      opacity:0.95;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    }
+    .wx-orb-value{
+      font-weight: 900;
+      font-size: 22px;
+      letter-spacing: 0.5px;
+      color: #f8fafc;
+      text-shadow: 0 6px 16px rgba(0,0,0,0.35);
+      line-height:1;
+      min-height: 22px;
+      white-space:nowrap;
+    }
+    .wx-orb-unit{
+      font-size: 12px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: rgba(34,211,238,0.9);
+      text-shadow: 0 2px 14px rgba(34,211,238,0.25);
+      opacity:0.95;
+    }
 
-    .wx-hourly-list { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 0.5rem; scrollbar-width: none; }
-    .wx-hourly-item { min-width: 60px; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 0.8rem 0.5rem; border-radius: 16px; }
-    .wx-daily-row { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.8rem; background: rgba(255,255,255,0.03); border-radius: 12px; margin-bottom: 0.5rem; }
-    
-    /* Radar & Barometer Placeholders */
-    .wx-radar-body { height: 150px; background: rgba(0,0,0,0.2); border-radius: 16px; display:flex; align-items:center; justify-content:center; border: 1px dashed rgba(255,255,255,0.2); }
-    .wx-barometer { display: flex; justify-content: center; height: 100px; align-items: center; }
+    /* Re-highlight flash when values change */
+    .wx-orb.flash{ animation: wx-orb-flash 650ms ease-out; }
+    @keyframes wx-orb-flash{
+      0%{
+        border-color: rgba(34,211,238,0.75);
+        box-shadow: 0 20px 62px rgba(0,0,0,0.44), inset 0 1px 0 rgba(255,255,255,0.4), 0 0 0 0 rgba(34,211,238,0);
+      }
+      35%{
+        border-color: rgba(34,211,238,0.95);
+        box-shadow: 0 20px 62px rgba(0,0,0,0.44), inset 0 1px 0 rgba(255,255,255,0.45), 0 0 0 10px rgba(34,211,238,0.14);
+      }
+      100%{
+        border-color: rgba(255,255,255,0.28);
+        box-shadow: 0 16px 48px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.35);
+      }
+    }
 
-    /* Responsive */
-    @media (min-width: 900px) {
-      .wx-main { padding-inline: 15%; }
-      .wx-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
-      .wx-card-hourly { grid-column: span 3; }
-      .wx-card-daily { grid-column: span 1; grid-row: span 2; }
-      .wx-card-radar { grid-column: span 2; }
-      .wx-card-barometer { grid-column: span 2; }
+    /* ===== Loading ===== */
+    .loading-pulse{ animation: pulse 1.5s infinite; opacity:0.7; }
+    @keyframes pulse{ 50%{ opacity:0.4; } }
+
+    /* ===== Responsive ===== */
+    @media (min-width: 900px){
+      .wx-main{ padding-inline: 10%; padding-top: 6rem; }
+      .wx-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; }
+      .wx-card-daily{ grid-column: span 1; grid-row: span 2; }
+      .wx-card-hourly{ grid-column: span 2; }
+      .wx-hero-content{ align-items:flex-start; text-align:left; padding-left: 2rem; }
+      .wx-hero{ align-items:flex-start; }
+      .wx-hero-meta{ justify-content:flex-start; }
+      .wx-orb-row{ justify-content:flex-start; }
+    }
+    @media (max-width: 420px){
+      .wx-orb{ width:104px;height:104px; }
+      .wx-orb-value{ font-size:20px; }
     }
   </style>
 </head>
 
 <body>
+  <!-- BACKGROUND STAGE -->
+  <div class="wx-bg-stage" aria-hidden="true">
+    <div class="wx-bg-layer wx-bg-a"></div>
+    <div class="wx-bg-layer wx-bg-b"></div>
+    <div class="wx-bg-vignette"></div>
+    <div class="wx-bg-noise"></div>
+
+    <!-- particles -->
+    <div class="wx-particles" id="wx-particles"></div>
+  </div>
+
   <div class="wx-app">
+    <!-- Top bar -->
     <header class="wx-header">
-      <button id="wx-locate" class="wx-chip"><i class="ph-bold ph-map-pin"></i><span>Locate</span></button>
+      <button id="wx-locate" class="wx-chip">
+        <i class="ph-bold ph-map-pin"></i>
+        <span>Locate</span>
+      </button>
+
+      <div class="wx-title">NetWatch Weather</div>
+
       <div class="wx-unit-toggle">
         <button id="wx-unit-f" class="active">°F</button>
         <button id="wx-unit-c">°C</button>
       </div>
     </header>
 
+    <!-- Main content -->
     <main class="wx-main">
+      <!-- HERO -->
       <section class="wx-hero">
         <div class="wx-hero-bg"></div>
-        
         <div class="wx-hero-content">
           <div class="wx-hero-location" id="wx-location">Locating...</div>
-          
+
           <div class="wx-hero-condition">
-            <div id="wx-condition-icon-container"><i class="ph-fill ph-circle-notch spin-slow"></i></div>
-            <span id="wx-condition-text">...</span>
+            <div id="wx-condition-icon-container">
+              <i class="ph-fill ph-circle-notch loading-pulse"></i>
+            </div>
+            <span id="wx-condition-text">Fetching...</span>
           </div>
 
-          <div class="wx-hero-temp" id="wx-current-temp">--°</div>
+          <div class="wx-hero-temp-row">
+            <div id="wx-current-temp" class="wx-hero-temp">--°</div>
+          </div>
 
           <div class="wx-hero-meta">
-            <span id="wx-feels-like">Feels --°</span>
+            <span id="wx-feels-like">Feels like --°</span>
             <span>•</span>
-            <span id="wx-hi-lo">H:-- L:--</span>
+            <span id="wx-hi-lo">H:--° L:--°</span>
           </div>
 
-          <div class="wx-orb-row">
-            
-            <div class="wx-orb-container" onclick="this.classList.toggle('flipped')">
-              <div class="wx-orb-flipper">
-                <div class="wx-orb-face wx-orb-front">
-                   <div class="wx-orb-lines"><span></span><span></span><span></span></div>
-                   <i class="ph-fill ph-wind wx-orb-icon"></i>
-                   <div class="wx-orb-value" id="orb-wind-val">--</div>
-                   <div class="wx-orb-label">WIND</div>
-                </div>
-                <div class="wx-orb-face wx-orb-back">
-                   <i class="ph-fill ph-fan wx-orb-detail-icon spin-slow"></i>
-                   <div class="wx-orb-detail-text">Gusts</div>
-                   <div class="wx-orb-value" style="font-size:1rem" id="orb-wind-gust">--</div>
-                </div>
+          <div class="wx-hero-meta" style="margin-top:0.5rem">
+            <span id="wx-wind">Wind: --</span>
+            <span>•</span>
+            <span id="wx-precip">Precip: --</span>
+          </div>
+
+          <!-- GLASS ORBS HUD -->
+          <div class="wx-orb-row" aria-label="Quick Stats">
+            <div class="wx-orb" id="wx-orb-temp">
+              <div class="wx-orb-lines"><span></span><span></span><span></span></div>
+              <div class="wx-orb-content">
+                <div class="wx-orb-top"><i class="ph-fill ph-thermometer"></i></div>
+                <div class="wx-orb-value" id="wx-orb-temp-value">--</div>
+                <div class="wx-orb-unit">TEMP</div>
               </div>
             </div>
 
-            <div class="wx-orb-container" onclick="this.classList.toggle('flipped')">
-              <div class="wx-orb-flipper">
-                <div class="wx-orb-face wx-orb-front">
-                   <div class="wx-orb-lines"><span></span><span></span><span></span></div>
-                   <i class="ph-fill ph-gauge wx-orb-icon"></i>
-                   <div class="wx-orb-value" id="orb-pres-val">--</div>
-                   <div class="wx-orb-label">hPa</div>
-                </div>
-                <div class="wx-orb-face wx-orb-back">
-                   <i class="ph-bold ph-trend-up wx-orb-detail-icon"></i>
-                   <div class="wx-orb-detail-text">Stable</div>
-                </div>
+            <div class="wx-orb" id="wx-orb-wind">
+              <div class="wx-orb-lines"><span></span><span></span><span></span></div>
+              <div class="wx-orb-content">
+                <div class="wx-orb-top"><i class="ph-fill ph-wind"></i></div>
+                <div class="wx-orb-value" id="wx-orb-wind-value">--</div>
+                <div class="wx-orb-unit">WIND</div>
               </div>
             </div>
 
-            <div class="wx-orb-container" onclick="this.classList.toggle('flipped')">
-              <div class="wx-orb-flipper">
-                <div class="wx-orb-face wx-orb-front">
-                   <div class="wx-orb-lines"><span></span><span></span><span></span></div>
-                   <i class="ph-fill ph-sun wx-orb-icon"></i>
-                   <div class="wx-orb-value" id="orb-sun-val">--</div>
-                   <div class="wx-orb-label">SUNSET</div>
-                </div>
-                <div class="wx-orb-face wx-orb-back">
-                   <i class="ph-fill ph-horizon wx-orb-detail-icon"></i>
-                   <div class="wx-orb-detail-text">Dusk</div>
-                   <div class="wx-orb-value" style="font-size:1rem" id="orb-sun-time">--:--</div>
-                </div>
+            <div class="wx-orb" id="wx-orb-pressure">
+              <div class="wx-orb-lines"><span></span><span></span><span></span></div>
+              <div class="wx-orb-content">
+                <div class="wx-orb-top"><i class="ph-fill ph-gauge"></i></div>
+                <div class="wx-orb-value" id="wx-orb-pressure-value2">--</div>
+                <div class="wx-orb-unit">PRESSURE</div>
               </div>
             </div>
 
-            <div class="wx-orb-container" onclick="this.classList.toggle('flipped')">
-              <div class="wx-orb-flipper">
-                <div class="wx-orb-face wx-orb-front">
-                   <div class="wx-orb-lines"><span></span><span></span><span></span></div>
-                   <i class="ph-fill ph-moon-stars wx-orb-icon"></i>
-                   <div class="wx-orb-value" id="orb-moon-val">--</div>
-                   <div class="wx-orb-label">ILLUM</div>
-                </div>
-                <div class="wx-orb-face wx-orb-back">
-                   <i class="ph-fill ph-moon wx-orb-detail-icon"></i>
-                   <div class="wx-orb-detail-text">Phase</div>
-                </div>
+            <div class="wx-orb" id="wx-orb-sunset">
+              <div class="wx-orb-lines"><span></span><span></span><span></span></div>
+              <div class="wx-orb-content">
+                <div class="wx-orb-top"><i class="ph-fill ph-sun"></i></div>
+                <div class="wx-orb-value" id="wx-orb-sunset-value">--</div>
+                <div class="wx-orb-unit">TO SUNSET</div>
               </div>
             </div>
 
-          </div> </div>
+            <div class="wx-orb" id="wx-orb-illum">
+              <div class="wx-orb-lines"><span></span><span></span><span></span></div>
+              <div class="wx-orb-content">
+                <div class="wx-orb-top"><i class="ph-fill ph-moon-stars"></i></div>
+                <div class="wx-orb-value" id="wx-orb-illum-value">--</div>
+                <div class="wx-orb-unit">ILLUM.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </section>
 
+      <!-- GRID -->
       <section class="wx-grid">
+        <!-- HOURLY -->
         <article class="wx-card wx-card-hourly">
-          <header class="wx-card-header"><i class="ph-bold ph-clock"></i> Next 24 Hours</header>
-          <div id="wx-hourly" class="wx-hourly-list"></div>
+          <header class="wx-card-header">
+            <i class="ph-bold ph-clock"></i>
+            <h2 style="margin:0;font-size:0.95rem;">Next 24 Hours</h2>
+          </header>
+          <div id="wx-hourly" class="wx-hourly-list">
+            <div class="wx-hourly-item">
+              <div class="loading-pulse" style="width:40px;height:40px;background:white;opacity:0.2;border-radius:50%"></div>
+            </div>
+          </div>
         </article>
-        
+
+        <!-- DAILY -->
         <article class="wx-card wx-card-daily">
-          <header class="wx-card-header"><i class="ph-bold ph-calendar-blank"></i> 7-Day</header>
+          <header class="wx-card-header">
+            <i class="ph-bold ph-calendar-blank"></i>
+            <h2 style="margin:0;font-size:0.95rem;">7-Day Forecast</h2>
+          </header>
           <div id="wx-daily" class="wx-daily-list"></div>
         </article>
 
+        <!-- RADAR -->
         <article class="wx-card wx-card-radar">
-           <header class="wx-card-header"><i class="ph-bold ph-radar"></i> Radar</header>
-           <div class="wx-radar-body"><a href="https://windy.com" target="_blank" style="color:white;text-decoration:none">Tap to View Map <i class="ph-bold ph-arrow-square-out"></i></a></div>
+          <header class="wx-card-header">
+            <i class="ph-bold ph-radar"></i>
+            <h2 style="margin:0;font-size:0.95rem;">Live Radar</h2>
+          </header>
+          <div class="wx-radar-body">
+            <div class="wx-radar-map-placeholder">
+              <div class="wx-radar-pulse"></div>
+            </div>
+            <a id="wx-radar-link" href="#" target="_blank" class="wx-button-outline">
+              Open Map <i class="ph-bold ph-arrow-square-out"></i>
+            </a>
+          </div>
+        </article>
+
+        <!-- BAROMETER -->
+        <article class="wx-card wx-card-barometer">
+          <header class="wx-card-header">
+            <i class="ph-bold ph-gauge"></i>
+            <h2 style="margin:0;font-size:0.95rem;">Pressure</h2>
+          </header>
+          <div class="wx-barometer">
+            <div style="position:relative; width:100px; height:100px;">
+              <div class="wx-barometer-gauge"></div>
+              <div id="wx-needle" class="wx-barometer-needle"></div>
+            </div>
+            <div class="wx-barometer-info">
+              <div id="wx-pressure-value" class="wx-barometer-value">--</div>
+              <div id="wx-pressure-trend" class="wx-barometer-trend">Steady</div>
+            </div>
+          </div>
         </article>
       </section>
     </main>
   </div>
 
   <script>
-    // --- SIMPLE LOGIC (No changes needed here for visual fix) ---
-    let wxUnit = "F"; 
-    
-    // UI References
+    /* ======================
+       STATE + DOM
+       ====================== */
+    let wxUnit = "F";          // "F" or "C"
+    let wxData = null;         // raw API data
+    let lastPressure = null;
+
+    const DEFAULT_LAT = 40.7128;
+    const DEFAULT_LON = -74.0060;
+
     const el = (id) => document.getElementById(id);
-    const ui = {
-      loc: el('wx-location'), cond: el('wx-condition-text'), icon: el('wx-condition-icon-container'),
-      temp: el('wx-current-temp'), feels: el('wx-feels-like'), hilo: el('wx-hi-lo'),
-      hourly: el('wx-hourly'), daily: el('wx-daily'),
+    const els = {
+      locate: el("wx-locate"),
+      unitF: el("wx-unit-f"),
+      unitC: el("wx-unit-c"),
+      location: el("wx-location"),
+      conditionText: el("wx-condition-text"),
+      conditionIconContainer: el("wx-condition-icon-container"),
+      currentTemp: el("wx-current-temp"),
+      feelsLike: el("wx-feels-like"),
+      hiLo: el("wx-hi-lo"),
+      wind: el("wx-wind"),
+      precip: el("wx-precip"),
+      hourly: el("wx-hourly"),
+      daily: el("wx-daily"),
+      pressureValue: el("wx-pressure-value"),
+      pressureTrend: el("wx-pressure-trend"),
+      needle: el("wx-needle"),
+      radarLink: el("wx-radar-link"),
+
       // Orbs
-      wind: el('orb-wind-val'), gust: el('orb-wind-gust'),
-      pres: el('orb-pres-val'),
-      sun: el('orb-sun-val'), sunTime: el('orb-sun-time'),
-      moon: el('orb-moon-val')
+      orbTemp: el("wx-orb-temp"),
+      orbWind: el("wx-orb-wind"),
+      orbPressure: el("wx-orb-pressure"),
+      orbSunset: el("wx-orb-sunset"),
+      orbIllum: el("wx-orb-illum"),
+      orbTempValue: el("wx-orb-temp-value"),
+      orbWindValue: el("wx-orb-wind-value"),
+      orbPressureValue2: el("wx-orb-pressure-value2"),
+      orbSunsetValue: el("wx-orb-sunset-value"),
+      orbIllumValue: el("wx-orb-illum-value"),
+
+      particles: el("wx-particles")
     };
 
-    function getTemp(c) { return wxUnit === "F" ? Math.round((c*9)/5+32) : Math.round(c); }
-    
-    // Quick Icon Mapper
-    function getIcon(code, isDay) {
-        const path = "https://raw.githubusercontent.com/basmilius/weather-icons/master/production/fill/svg/";
-        // Using generic mapping for demo
-        let file = "cloudy.svg";
-        if(code === 0) file = isDay ? "clear-day.svg" : "clear-night.svg";
-        else if(code < 3) file = isDay ? "partly-cloudy-day.svg" : "partly-cloudy-night.svg";
-        else if(code > 50) file = "rain.svg";
-        return path + file;
+    /* ======================
+       PARTICLES (movement)
+       ====================== */
+    function seedParticles(){
+      if(!els.particles) return;
+      const count = 26;
+      els.particles.innerHTML = "";
+      for(let i=0;i<count;i++){
+        const p = document.createElement("span");
+        const left = Math.random()*100;
+        const top = 60 + Math.random()*40; // bottom-ish start
+        const dur = 7 + Math.random()*10;
+        const delay = Math.random()*4;
+        const size = 2 + Math.random()*2.5;
+        p.style.left = left + "%";
+        p.style.top = top + "%";
+        p.style.width = size + "px";
+        p.style.height = size + "px";
+        p.style.animationDuration = dur + "s";
+        p.style.animationDelay = delay + "s";
+        els.particles.appendChild(p);
+      }
+    }
+    seedParticles();
+
+    /* ======================
+       WEATHER ICONS + THEMES
+       ====================== */
+    function getWeatherInfo(code, isDay=1){
+      const BG_CLEAR_DAY   = ["#3b82f6", "#60a5fa"];
+      const BG_CLEAR_NIGHT = ["#0f172a", "#1e293b"];
+      const BG_CLOUDY_DAY  = ["#64748b", "#94a3b8"];
+      const BG_CLOUDY_NIGHT= ["#1e293b", "#334155"];
+      const BG_RAIN        = ["#334155", "#0b1220"];
+      const BG_STORM       = ["#0b1024", "#1e1b4b"];
+      const BG_SNOW        = ["#334155", "#0b1220"];
+
+      const ICON_BASE = "icons/";
+
+      const map = {
+        0:  { desc:"Clear Sky",     file: isDay ? "day.svg" : "night.svg",                 bg: isDay ? BG_CLEAR_DAY : BG_CLEAR_NIGHT, mood:"clear" },
+        1:  { desc:"Mainly Clear",  file: isDay ? "cloudy-day-1.svg" : "cloudy-night-1.svg", bg: isDay ? BG_CLEAR_DAY : BG_CLEAR_NIGHT, mood:"clear" },
+        2:  { desc:"Partly Cloudy", file: isDay ? "cloudy-day-1.svg" : "cloudy-night-1.svg", bg: isDay ? BG_CLEAR_DAY : BG_CLEAR_NIGHT, mood:"cloud" },
+        3:  { desc:"Overcast",      file:"cloudy.svg",                                     bg: isDay ? BG_CLOUDY_DAY : BG_CLOUDY_NIGHT, mood:"cloud" },
+        45: { desc:"Fog",           file:"cloudy.svg",                                     bg: BG_CLOUDY_DAY, mood:"fog" },
+        48: { desc:"Rime Fog",      file:"cloudy.svg",                                     bg: BG_CLOUDY_DAY, mood:"fog" },
+
+        51: { desc:"Drizzle",       file:"rainy-1.svg",                                    bg: BG_RAIN, mood:"rain" },
+        53: { desc:"Drizzle",       file:"rainy-1.svg",                                    bg: BG_RAIN, mood:"rain" },
+        55: { desc:"Drizzle",       file:"rainy-1.svg",                                    bg: BG_RAIN, mood:"rain" },
+
+        61: { desc:"Rain",          file:"rainy-4.svg",                                    bg: BG_RAIN, mood:"rain" },
+        63: { desc:"Rain",          file:"rainy-4.svg",                                    bg: BG_RAIN, mood:"rain" },
+        65: { desc:"Heavy Rain",    file:"rainy-4.svg",                                    bg: BG_RAIN, mood:"rain" },
+
+        71: { desc:"Snow",          file:"snowy-4.svg",                                    bg: BG_SNOW, mood:"snow" },
+        73: { desc:"Snow",          file:"snowy-4.svg",                                    bg: BG_SNOW, mood:"snow" },
+        75: { desc:"Heavy Snow",    file:"snowy-6.svg",                                    bg: BG_SNOW, mood:"snow" },
+
+        80: { desc:"Showers",       file:"rainy-6.svg",                                    bg: BG_RAIN, mood:"rain" },
+        81: { desc:"Showers",       file:"rainy-6.svg",                                    bg: BG_RAIN, mood:"rain" },
+        82: { desc:"Showers",       file:"rainy-6.svg",                                    bg: BG_RAIN, mood:"rain" },
+
+        85: { desc:"Snow Showers",  file:"snowy-6.svg",                                    bg: BG_SNOW, mood:"snow" },
+        86: { desc:"Snow Showers",  file:"snowy-6.svg",                                    bg: BG_SNOW, mood:"snow" },
+
+        95: { desc:"Thunderstorm",  file:"thunder.svg",                                    bg: BG_STORM, mood:"storm" },
+        96: { desc:"Thunderstorm",  file:"thunder.svg",                                    bg: BG_STORM, mood:"storm" },
+        99: { desc:"Thunderstorm",  file:"thunder.svg",                                    bg: BG_STORM, mood:"storm" },
+      };
+
+      const res = map[code] || { desc:"Unknown", file:"weather.svg", bg: BG_CLOUDY_DAY, mood:"cloud" };
+      res.path = ICON_BASE + res.file;
+      return res;
     }
 
-    async function loadWeather() {
-      // Hardcoded NY for demo stability, swap with your Geo logic
-      const url = "https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current_weather=true&hourly=temperature_2m,weathercode,surface_pressure&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset&windspeed_unit=mph&timezone=auto";
-      
-      try {
-        const res = await fetch(url);
+    /* ======================
+       UNITS
+       ====================== */
+    function getTemp(celsius){
+      if(wxUnit === "F") return Math.round((celsius * 9)/5 + 32);
+      return Math.round(celsius);
+    }
+
+    function getWind(speedMph){
+      if(wxUnit === "F") return `${Math.round(speedMph)} mph`;
+      return `${Math.round(speedMph * 1.60934)} km/h`;
+    }
+
+    function formatTime(isoString, timezone, options){
+      const date = new Date(isoString);
+      return new Intl.DateTimeFormat('en-US', { timeZone: timezone, ...options }).format(date);
+    }
+
+    function fmtInt(n){
+      return (n === null || n === undefined || Number.isNaN(n)) ? "--" : String(Math.round(n));
+    }
+
+    /* ======================
+       BAROMETER
+       ====================== */
+    function updateBarometer(pressure){
+      const minP = 970, maxP = 1040;
+      const clamped = Math.max(minP, Math.min(maxP, pressure));
+      const ratio = (clamped - minP) / (maxP - minP);
+
+      const minDeg = -135, maxDeg = 45;
+      const deg = minDeg + (ratio * (maxDeg - minDeg));
+
+      els.needle.style.transform = `translate(-50%, -50%) rotate(${deg}deg)`;
+      els.pressureValue.textContent = `${Math.round(pressure)} hPa`;
+
+      if(lastPressure !== null){
+        const diff = pressure - lastPressure;
+        if(Math.abs(diff) < 1) els.pressureTrend.textContent = "Stable";
+        else if(diff > 0) els.pressureTrend.textContent = "Rising";
+        else els.pressureTrend.textContent = "Falling";
+      }
+      lastPressure = pressure;
+    }
+
+    /* ======================
+       ORB HELPERS
+       ====================== */
+    const orbState = { temp:null, wind:null, pressure:null, toSunsetMin:null, illum:null };
+
+    function flashOrb(orbEl){
+      if(!orbEl) return;
+      orbEl.classList.remove("flash");
+      void orbEl.offsetWidth;
+      orbEl.classList.add("flash");
+    }
+
+    function computeToSunsetMinutes(now, sunriseISO, sunsetISO){
+      try{
+        const nowMs = now.getTime();
+        const sunsetMs = new Date(sunsetISO).getTime();
+        const sunriseMs = new Date(sunriseISO).getTime();
+        if(nowMs > sunsetMs) return null;   // after sunset: hide
+        if(nowMs < sunriseMs) {
+          // before sunrise: still show minutes to sunset (same-day sunset)
+        }
+        return Math.max(0, Math.round((sunsetMs - nowMs) / 60000));
+      }catch(e){ return null; }
+    }
+
+    // daylight curve: 0 at night, peaks at midday
+    function computeIllumPercent(now, sunriseISO, sunsetISO){
+      try{
+        const t = now.getTime();
+        const sr = new Date(sunriseISO).getTime();
+        const ss = new Date(sunsetISO).getTime();
+        if(t < sr || t > ss) return 0;
+        const ratio = (t - sr) / (ss - sr);
+        const pct = Math.sin(Math.PI * ratio) * 100;
+        return Math.max(0, Math.min(100, pct));
+      }catch(e){ return null; }
+    }
+
+    /* ======================
+       HOURLY BACKGROUND ROTATOR
+       Host images in: assets/bg/
+       Naming scheme:
+         clear_day_00.jpg ... clear_day_23.jpg
+         rain_night_00.jpg ... rain_night_23.jpg
+         storm_day_00.jpg ...
+         cloud_day_00.jpg ...
+         snow_day_00.jpg ...
+         fog_day_00.jpg ...
+       ====================== */
+    const bg = {
+      a: document.querySelector(".wx-bg-a"),
+      b: document.querySelector(".wx-bg-b"),
+      isA: true,
+      lastKey: null
+    };
+
+    function pickBackground(mood, isDay, hour){
+      const dn = isDay ? "day" : "night";
+      const hh = String(hour).padStart(2,"0");
+      return `assets/bg/${mood}_${dn}_${hh}.jpg`;
+    }
+
+    function swapBackground(url){
+      if(!url || url === bg.lastKey) return;
+      bg.lastKey = url;
+
+      const show = bg.isA ? bg.b : bg.a;
+      const hide = bg.isA ? bg.a : bg.b;
+
+      // preload for smoother fades
+      const img = new Image();
+      img.onload = () => {
+        show.style.backgroundImage = `url("${url}")`;
+        show.style.transition = "opacity 900ms ease";
+        hide.style.transition = "opacity 900ms ease";
+        requestAnimationFrame(() => {
+          show.style.opacity = "1";
+          hide.style.opacity = "0";
+        });
+        bg.isA = !bg.isA;
+      };
+      img.onerror = () => {
+        // if missing asset, don't break app
+        console.warn("Background missing:", url);
+      };
+      img.src = url;
+    }
+
+    function updateBackgroundForNow(curr, info){
+      const hour = new Date().getHours();
+      const url = pickBackground(info.mood || "clear", curr.is_day, hour);
+      swapBackground(url);
+    }
+
+    /* ======================
+       API FETCH
+       ====================== */
+    async function getLocationViaIP(){
+      try{
+        const res = await fetch("https://ipwho.is/");
         const data = await res.json();
-        const curr = data.current_weather;
-        
-        ui.loc.textContent = "New York, USA";
-        ui.cond.textContent = "Clear Sky"; // Simplified
-        ui.icon.innerHTML = `<img src="${getIcon(curr.weathercode, curr.is_day)}" class="wx-icon-hero">`;
-        ui.temp.textContent = getTemp(curr.temperature) + "°";
-        
-        // Populate Orbs
-        ui.wind.textContent = Math.round(curr.windspeed);
-        ui.gust.textContent = Math.round(curr.windspeed * 1.5); // Mock gust
-        ui.pres.textContent = Math.round(data.hourly.surface_pressure[0]);
-        
-        // Sunset Math
-        const sunsetDate = new Date(data.daily.sunset[0]);
-        const now = new Date();
-        const diffMin = Math.max(0, Math.round((sunsetDate - now)/60000));
-        ui.sun.textContent = diffMin + "m";
-        ui.sunTime.textContent = sunsetDate.getHours() + ":" + String(sunsetDate.getMinutes()).padStart(2,'0');
-
-        ui.moon.textContent = "84%"; // Mock
-
-        // Populate Lists (Simplified)
-        ui.hourly.innerHTML = data.hourly.time.slice(0,12).map((t,i) => `
-            <div class="wx-hourly-item">
-                <span>${t.slice(11,13)}</span>
-                <strong>${getTemp(data.hourly.temperature_2m[i])}°</strong>
-            </div>
-        `).join('');
-
-        ui.daily.innerHTML = data.daily.time.slice(0,5).map((t,i) => `
-            <div class="wx-daily-row">
-                <span>${new Date(t).toLocaleDateString('en-US',{weekday:'short'})}</span>
-                <div>
-                   <b>${getTemp(data.daily.temperature_2m_max[i])}°</b> 
-                   <span style="opacity:0.6">${getTemp(data.daily.temperature_2m_min[i])}°</span>
-                </div>
-            </div>
-        `).join('');
-
-      } catch(e) { console.error(e); }
+        if(!data.success) return null;
+        return { lat:data.latitude, lon:data.longitude, name:`${data.city}, ${data.country_code}` };
+      }catch(e){
+        console.warn("IP lookup failed", e);
+        return null;
+      }
     }
 
-    el('wx-unit-f').onclick = () => { wxUnit="F"; loadWeather(); el('wx-unit-f').classList.add('active'); el('wx-unit-c').classList.remove('active'); };
-    el('wx-unit-c').onclick = () => { wxUnit="C"; loadWeather(); el('wx-unit-c').classList.add('active'); el('wx-unit-f').classList.remove('active'); };
+    async function loadWeather(useGeo){
+      let lat = DEFAULT_LAT, lon = DEFAULT_LON, name = "New York, USA";
+      els.location.textContent = "Locating...";
 
-    loadWeather();
+      let foundLocation = null;
+
+      if(useGeo && navigator.geolocation){
+        try{
+          const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000 });
+          });
+          foundLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude, name: "My Location" };
+        }catch(e){
+          console.warn("GPS denied/timeout. Trying IP...", e);
+        }
+      }
+
+      if(!foundLocation){
+        const ipLoc = await getLocationViaIP();
+        if(ipLoc) foundLocation = ipLoc;
+        else name = "New York (Default)";
+      }
+
+      if(foundLocation){
+        lat = foundLocation.lat;
+        lon = foundLocation.lon;
+        name = foundLocation.name;
+      }
+
+      // NOTE: winds in mph, temps in Celsius (we convert client-side)
+      const url =
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+        `&current_weather=true` +
+        `&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,surface_pressure,is_day` +
+        `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset` +
+        `&windspeed_unit=mph&timezone=auto`;
+
+      try{
+        const res = await fetch(url);
+        if(!res.ok) throw new Error("API Error");
+        const data = await res.json();
+        wxData = { ...data, locationName: name };
+        render();
+      }catch(err){
+        console.error(err);
+        els.location.textContent = "Connection Error";
+        els.conditionText.textContent = "Retrying...";
+      }
+    }
+
+    /* ======================
+       RENDER
+       ====================== */
+    function render(){
+      if(!wxData) return;
+      const { current_weather: curr, hourly, daily, timezone } = wxData;
+
+      const info = getWeatherInfo(curr.weathercode, curr.is_day);
+
+      // Dynamic background tint + hourly background image crossfade
+      document.documentElement.style.setProperty('--wx-bg-top', info.bg[0]);
+      document.documentElement.style.setProperty('--wx-bg-bottom', info.bg[1]);
+      updateBackgroundForNow(curr, info);
+
+      // Current
+      els.location.textContent = wxData.locationName;
+      els.conditionText.textContent = info.desc;
+      els.conditionIconContainer.innerHTML = `<img src="${info.path}" alt="${info.desc}" class="wx-icon-hero">`;
+
+      const tempNow = getTemp(curr.temperature);
+      els.currentTemp.textContent = `${tempNow}°`;
+      els.wind.textContent = `Wind: ${getWind(curr.windspeed)}`;
+
+      // Find current hour index
+      const currentHourISO = new Date().toISOString().slice(0, 13);
+      let idx = hourly.time.findIndex(t => t.startsWith(currentHourISO));
+      if(idx === -1) idx = 0;
+
+      const feelsC = hourly.apparent_temperature[idx];
+      els.feelsLike.textContent = `Feels like ${getTemp(feelsC)}°`;
+
+      const precipProb = hourly.precipitation_probability[idx];
+      els.precip.textContent = `Precip: ${fmtInt(precipProb)}%`;
+
+      const hi = daily.temperature_2m_max[0];
+      const lo = daily.temperature_2m_min[0];
+      els.hiLo.textContent = `H:${getTemp(hi)}° L:${getTemp(lo)}°`;
+
+      // Hourly (24h)
+      let hourlyHTML = "";
+      for(let i = idx; i < idx + 24 && i < hourly.time.length; i++){
+        const hInfo = getWeatherInfo(hourly.weathercode[i], hourly.is_day[i]);
+        const hTemp = hourly.temperature_2m[i];
+        const hTime = formatTime(hourly.time[i], timezone, { hour: 'numeric' });
+
+        hourlyHTML += `
+          <div class="wx-hourly-item">
+            <span class="wx-hourly-item-time">${i === idx ? "Now" : hTime}</span>
+            <img src="${hInfo.path}" alt="${hInfo.desc}" class="wx-hourly-item-icon">
+            <span class="wx-hourly-item-temp">${getTemp(hTemp)}°</span>
+          </div>
+        `;
+      }
+      els.hourly.innerHTML = hourlyHTML;
+
+      // Daily (7 days)
+      let dailyHTML = "";
+      for(let i = 0; i < 7 && i < daily.time.length; i++){
+        const dInfo = getWeatherInfo(daily.weathercode[i], 1);
+        const dMax = daily.temperature_2m_max[i];
+        const dMin = daily.temperature_2m_min[i];
+        const dLabel = i === 0 ? "Today" : formatTime(daily.time[i], timezone, { weekday:'long' });
+
+        dailyHTML += `
+          <div class="wx-daily-row">
+            <span class="wx-daily-label">${dLabel}</span>
+            <img src="${dInfo.path}" alt="${dInfo.desc}" class="wx-daily-icon">
+            <div class="wx-daily-temps">
+              <span>${getTemp(dMax)}°</span>
+              <span>${getTemp(dMin)}°</span>
+            </div>
+          </div>
+        `;
+      }
+      els.daily.innerHTML = dailyHTML;
+
+      // Barometer
+      const pres = hourly.surface_pressure[idx] || (hourly.pressure_msl ? hourly.pressure_msl[idx] : null);
+      if(pres) updateBarometer(pres);
+
+      // Radar link
+      els.radarLink.href = `https://www.windy.com/?${wxData.latitude},${wxData.longitude},10`;
+
+      // ===== ORBS (live values + highlight on change) =====
+      const now = new Date();
+
+      // TEMP orb
+      els.orbTempValue.textContent = `${tempNow}°`;
+      if(orbState.temp !== tempNow){ flashOrb(els.orbTemp); orbState.temp = tempNow; }
+
+      // WIND orb
+      const windStr = getWind(curr.windspeed);
+      els.orbWindValue.textContent = windStr;
+      if(orbState.wind !== windStr){ flashOrb(els.orbWind); orbState.wind = windStr; }
+
+      // PRESSURE orb
+      const presText = pres ? `${fmtInt(pres)} hPa` : "--";
+      els.orbPressureValue2.textContent = presText;
+      if(orbState.pressure !== presText){ flashOrb(els.orbPressure); orbState.pressure = presText; }
+
+      // TO SUNSET + ILLUM
+      const sunriseISO = daily.sunrise?.[0];
+      const sunsetISO = daily.sunset?.[0];
+
+      const toSunsetMin = (sunriseISO && sunsetISO) ? computeToSunsetMinutes(now, sunriseISO, sunsetISO) : null;
+      const illumPct = (sunriseISO && sunsetISO) ? computeIllumPercent(now, sunriseISO, sunsetISO) : null;
+
+      const sunsetText = (toSunsetMin === null) ? "--" : `${fmtInt(toSunsetMin)} min`;
+      const illumText = (illumPct === null) ? "--" : `${fmtInt(illumPct)}%`;
+
+      els.orbSunsetValue.textContent = sunsetText;
+      els.orbIllumValue.textContent = illumText;
+
+      if(orbState.toSunsetMin !== sunsetText){ flashOrb(els.orbSunset); orbState.toSunsetMin = sunsetText; }
+      if(orbState.illum !== illumText){ flashOrb(els.orbIllum); orbState.illum = illumText; }
+    }
+
+    /* ======================
+       EVENTS
+       ====================== */
+    function setUnit(u){
+      wxUnit = u;
+      els.unitF.classList.toggle("active", u === "F");
+      els.unitC.classList.toggle("active", u === "C");
+      render();
+    }
+
+    els.unitF.onclick = () => setUnit("F");
+    els.unitC.onclick = () => setUnit("C");
+    els.locate.onclick = () => loadWeather(true);
+
+    /* ======================
+       REALTIME REFRESH
+       ====================== */
+    // Fetch on load (try geo)
+    loadWeather(true);
+
+    // Re-fetch periodically so it updates when conditions change (real data)
+    setInterval(() => loadWeather(false), 120000); // every 2 minutes
+
+    // Change background on the hour (we check every minute)
+    setInterval(() => {
+      if(!wxData?.current_weather) return;
+      const info = getWeatherInfo(wxData.current_weather.weathercode, wxData.current_weather.is_day);
+      updateBackgroundForNow(wxData.current_weather, info);
+    }, 60000);
+
+    // Optional: keep it feeling alive even when values steady
+    setInterval(() => {
+      flashOrb(els.orbTemp);
+      flashOrb(els.orbWind);
+      flashOrb(els.orbPressure);
+      flashOrb(els.orbSunset);
+      flashOrb(els.orbIllum);
+    }, 6500);
+
+    // Reseed particles occasionally
+    setInterval(seedParticles, 15000);
   </script>
 </body>
 </html>
