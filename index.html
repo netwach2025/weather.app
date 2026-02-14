@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
+
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 
@@ -19,16 +19,16 @@
       --accent: #a5f3fc;
       --text-main: #ffffff;
       --text-muted: rgba(255, 255, 255, 0.6);
-      
+
       --glass-surface: rgba(255, 255, 255, 0.03);
       --glass-border: rgba(255, 255, 255, 0.18);
       --glass-highlight: rgba(255, 255, 255, 0.3);
       --glass-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      
+
       --radius-lg: 32px;
       --radius-pill: 999px;
       --sidebar-width: 88px;
-      
+
       /* Safe Area Variables for iPhone Notch/Home Bar */
       --safe-top: env(safe-area-inset-top);
       --safe-bottom: env(safe-area-inset-bottom);
@@ -81,11 +81,11 @@
       box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
     }
     .nav-item.active i { color: var(--accent); }
-    
+
     /* Mobile-Only Nav Adjustments */
     @media (max-width: 768px) {
       .app-container { flex-direction: column-reverse; } /* Move sidebar to bottom */
-      
+
       .sidebar {
         width: 100%; 
         height: calc(70px + var(--safe-bottom)); /* Dynamic height for iPhone Home Bar */
@@ -99,7 +99,7 @@
       .nav-logo { display: none; }
       .nav-item { width: 48px; height: 48px; font-size: 1.4rem; }
       .nav-item .tooltip { display: none !important; } /* No tooltips on touch */
-      
+
       /* Hide settings on mobile to save space if needed, or keep it */
       .spacer { display: none; } 
     }
@@ -158,7 +158,7 @@
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
       gap: 1.5rem; 
     }
-    
+
     /* GLASS CARD */
     .glass-card {
       position: relative;
@@ -184,7 +184,7 @@
     /* Dynamic Fonts inside cards */
     .metric-label { font-size: 0.85rem; font-weight: 700; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; }
     .metric-val { font-size: 3rem; font-weight: 700; letter-spacing: -1px; }
-    
+
     /* Massive Hero Temp with Clamp */
     #val-temp {
       font-size: clamp(4rem, 10vw, 7rem); /* Scales smoothly from mobile to desktop */
@@ -193,7 +193,7 @@
 
     /* ===== WEATHER ICON ENGINE ===== */
     .weather-icon-stage { position: relative; width: 200px; height: 200px; transform: scale(1); }
-    
+
     /* Cloud & Sun CSS Animations (Same as before but responsive scale) */
     .glass-cloud {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -242,26 +242,26 @@
     @media (max-width: 768px) {
       /* Adjust Layout */
       .main-content { padding: 1.5rem; padding-bottom: 120px; } /* Extra bottom padding for nav */
-      
+
       /* Stack Header items */
       .header-right { width: 100%; justify-content: space-between; margin-top: 1rem; }
       .search-box { flex: 1; margin-right: 1rem; }
       .search-box input { width: 100%; min-width: 50px; }
-      
+
       /* Adjust Hero Card */
       .hero-card { 
         flex-direction: column; text-align: center; padding: 2rem; 
         gap: 1.5rem; align-items: center; 
       }
       .weather-icon-stage { transform: scale(0.9); } /* Shrink icon slightly */
-      
+
       /* Adjust Metrics Grid */
       .grid-dashboard { gap: 1rem; }
-      
+
       /* Fonts */
       .clock-time { font-size: 1.5rem; }
     }
-  
+
     /* ===== CLOCK GLASS (SUN-THROUGH GLASS) ===== */
     .clock-glass{
       position: relative;
@@ -547,6 +547,181 @@
       .detail-scene{ height: 240px; }
     }
 
+    /* =========================================================
+       FIXED: CELESTIAL SPLIT SUNRISE / SUNSET (ONLY THIS AREA)
+       ========================================================= */
+    .celestial-split{
+      grid-column: 1 / -1;
+      padding: 0;
+      overflow: hidden;
+    }
+    .celestial-wrap{
+      position: relative;
+      height: 260px;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--glass-border);
+      border-top: 1px solid rgba(255,255,255,0.35);
+      background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+      backdrop-filter: blur(55px) saturate(190%);
+      -webkit-backdrop-filter: blur(55px) saturate(190%);
+      box-shadow: var(--glass-shadow);
+    }
+    @media (max-width:768px){ .celestial-wrap{ height: 240px; } }
+
+    .celestial-bg{
+      position:absolute; inset:0;
+      transition: opacity .6s ease;
+    }
+    .celestial-bg.day{
+      background:
+        radial-gradient(160px 140px at 70% 22%, rgba(255,255,255,.35), transparent 60%),
+        radial-gradient(260px 220px at 72% 18%, rgba(255,200,120,.40), transparent 70%),
+        linear-gradient(180deg, rgba(120,195,255,.50), rgba(35,65,120,.22) 55%, rgba(0,0,0,.20));
+    }
+    .celestial-bg.twilight{
+      background:
+        radial-gradient(240px 200px at 55% 18%, rgba(255,170,110,.30), transparent 70%),
+        radial-gradient(260px 220px at 40% 15%, rgba(160,120,255,.22), transparent 75%),
+        linear-gradient(180deg, rgba(90,80,160,.55), rgba(15,18,42,.55) 60%, rgba(0,0,0,.38));
+    }
+    .celestial-bg.night{
+      background:
+        radial-gradient(240px 220px at 70% 18%, rgba(160,195,255,.28), transparent 72%),
+        linear-gradient(180deg, rgba(18,22,52,.78), rgba(8,10,22,.60) 60%, rgba(0,0,0,.45));
+    }
+
+    .celestial-stars{
+      position:absolute; inset:0; pointer-events:none;
+      opacity: 0; transition: opacity .7s ease;
+      background-image:
+        radial-gradient(1px 1px at 12% 22%, rgba(255,255,255,.55), transparent 60%),
+        radial-gradient(1px 1px at 28% 38%, rgba(255,255,255,.45), transparent 60%),
+        radial-gradient(1px 1px at 48% 18%, rgba(255,255,255,.55), transparent 60%),
+        radial-gradient(1px 1px at 66% 28%, rgba(255,255,255,.35), transparent 60%),
+        radial-gradient(1px 1px at 82% 22%, rgba(255,255,255,.45), transparent 60%),
+        radial-gradient(1px 1px at 18% 70%, rgba(255,255,255,.35), transparent 60%),
+        radial-gradient(1px 1px at 72% 74%, rgba(255,255,255,.45), transparent 60%),
+        radial-gradient(1px 1px at 88% 60%, rgba(255,255,255,.35), transparent 60%);
+      animation: twinkle 3.6s ease-in-out infinite;
+    }
+
+    .celestial-splitgrid{
+      position:absolute; inset:0;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .celestial-pane{
+      position:relative;
+      overflow:hidden;
+    }
+    .celestial-divider{
+      position:absolute; top:0; bottom:0; left:50%;
+      width:1px; transform: translateX(-.5px);
+      background: rgba(255,255,255,0.16);
+      box-shadow: 0 0 18px rgba(255,255,255,0.08);
+      pointer-events:none;
+    }
+
+    /* Ocean */
+    .celestial-ocean{
+      position:absolute; left:-12%; right:-12%; bottom:-18%;
+      height: 58%;
+      background:
+        radial-gradient(180px 60px at 18% 10%, rgba(255,255,255,.18), transparent 70%),
+        radial-gradient(220px 70px at 70% 18%, rgba(255,255,255,.14), transparent 72%),
+        linear-gradient(180deg, rgba(30,90,150,.18), rgba(0,0,0,.32));
+      border-top: 1px solid rgba(255,255,255,.18);
+    }
+    .celestial-ocean::before{
+      content:"";
+      position:absolute; inset:-20% -10%;
+      background: repeating-linear-gradient(110deg,
+        rgba(255,255,255,.10) 0px,
+        rgba(255,255,255,.10) 6px,
+        rgba(255,255,255,0) 12px,
+        rgba(255,255,255,0) 28px
+      );
+      opacity:.35;
+      transform: translateX(-6%);
+      animation: waveDrift 6.5s ease-in-out infinite;
+    }
+
+    /* Sun */
+    .celestial-sun{
+      position:absolute;
+      width: 78px; height:78px;
+      border-radius: 999px;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 72%;
+      background:
+        radial-gradient(circle at 35% 30%, rgba(255,255,255,.85), rgba(255,255,255,0) 40%),
+        radial-gradient(circle at 45% 40%, rgba(255,235,175,.95), rgba(255,190,95,.75) 45%, rgba(255,160,50,0) 78%);
+      box-shadow:
+        0 0 42px rgba(255,200,120,.45),
+        0 0 90px rgba(255,170,70,.20);
+      opacity: 1;
+    }
+
+    /* Sunrise / Sunset motion (scoped) */
+    @keyframes celestialRise{
+      0%{ top: 86%; opacity: 0; transform: translateX(-50%) scale(.94); }
+      12%{ opacity: 1; }
+      55%{ top: 30%; transform: translateX(-50%) scale(1.0); opacity:1; }
+      100%{ top: 20%; transform: translateX(-50%) scale(1.02); opacity:1; }
+    }
+    @keyframes celestialSet{
+      0%{ top: 20%; opacity:1; transform: translateX(-50%) scale(1.02); }
+      55%{ top: 34%; transform: translateX(-50%) scale(1.0); opacity:1; }
+      88%{ opacity: 1; }
+      100%{ top: 90%; opacity: 0; transform: translateX(-50%) scale(.94); }
+    }
+    .pane-sunrise .celestial-sun{ animation: celestialRise 6.0s ease-in-out infinite alternate; }
+    .pane-sunset  .celestial-sun{ animation: celestialSet  6.6s ease-in-out infinite alternate; }
+
+    /* light rays */
+    .celestial-rays{
+      position:absolute; inset:-35% -45%;
+      pointer-events:none;
+      background: conic-gradient(from 210deg at 70% 24%,
+        rgba(255,255,255,0),
+        rgba(255,255,255,.16),
+        rgba(255,255,255,0) 55%,
+        rgba(255,255,255,.10),
+        rgba(255,255,255,0) 78%,
+        rgba(255,255,255,0)
+      );
+      mix-blend-mode: screen;
+      opacity:.50;
+      filter: blur(7px);
+      transform: rotate(-10deg);
+      animation: raysSweep 6.8s ease-in-out infinite;
+    }
+
+    /* Labels inside split */
+    .celestial-label{
+      position:absolute; top:14px; left:14px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.78);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    .celestial-time{
+      position:absolute; top: 54px; left: 14px;
+      font-size: clamp(1.8rem, 4.5vw, 2.6rem);
+      font-weight: 800;
+      letter-spacing: -1px;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 18px rgba(255,255,255,0.10);
+    }
   </style>
 </head>
 <body>
@@ -576,7 +751,7 @@
     </nav>
 
     <main class="main-content">
-      
+
       <section id="view-dashboard" class="view-section active">
         <header class="view-header">
           <div class="view-title">
@@ -606,7 +781,7 @@
               <div id="val-temp">--°</div>
               <div style="color:var(--accent); margin-top:0.5rem; font-size:1.4rem; font-weight:600;" id="val-cond">--</div>
             </div>
-            
+
             <div class="weather-icon-stage" id="icon-stage">
                <div class="glass-cloud"></div>
             </div>
@@ -659,18 +834,37 @@
       <section id="view-astro" class="view-section">
          <header class="view-header"><div class="view-title"><span>Celestial</span><h1>Sun & Moon</h1></div></header>
          <div class="grid-dashboard">
-            <div class="glass-card">
-               <div class="metric-label">Sunrise</div>
-               <div class="metric-val" id="val-rise">--</div>
-            </div>
-            <div class="glass-card">
-               <div class="metric-label">Sunset</div>
-               <div class="metric-val" id="val-set">--</div>
+            <!-- Kept your original sunrise/sunset values/IDs, just upgraded the visual layout -->
+            <div class="glass-card celestial-split">
+              <div class="celestial-wrap" id="celestial-wrap">
+                <div class="celestial-bg day" id="celestial-bg"></div>
+                <div class="celestial-stars" id="celestial-stars"></div>
+
+                <div class="celestial-splitgrid">
+                  <div class="celestial-pane pane-sunrise">
+                    <div class="celestial-rays"></div>
+                    <div class="celestial-label">Sunrise</div>
+                    <div class="celestial-time" id="val-rise">--</div>
+                    <div class="celestial-sun" aria-hidden="true"></div>
+                    <div class="celestial-ocean" aria-hidden="true"></div>
+                  </div>
+
+                  <div class="celestial-pane pane-sunset">
+                    <div class="celestial-rays"></div>
+                    <div class="celestial-label">Sunset</div>
+                    <div class="celestial-time" id="val-set">--</div>
+                    <div class="celestial-sun" aria-hidden="true"></div>
+                    <div class="celestial-ocean" aria-hidden="true"></div>
+                  </div>
+                </div>
+
+                <div class="celestial-divider" aria-hidden="true"></div>
+              </div>
             </div>
          </div>
       </section>
 
-    
+
       <!-- ===== METRIC DETAIL MODAL ===== -->
       <div class="detail-overlay" id="detail-overlay" aria-hidden="true">
         <div class="detail-modal glass-card" role="dialog" aria-modal="true" aria-labelledby="detail-title">
@@ -770,41 +964,75 @@
     async function fetchWeather() {
       if (!lat || !lon) return;
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,visibility,pressure_msl,dewpoint_2m&daily=sunrise,sunset&windspeed_unit=mph&temperature_unit=fahrenheit&timezone=auto`;
-      
+
       try {
         const res = await fetch(url);
         const data = await res.json();
         const curr = data.current_weather;
-        
+
         ui.temp.textContent = Math.round(curr.temperature) + "°";
         ui.cond.textContent = getWeatherDesc(curr.weathercode);
         ui.windBig.textContent = Math.round(curr.windspeed);
-        
+
         ui.humid.textContent = data.hourly.relativehumidity_2m[0] + "%";
         ui.dew.textContent = Math.round(data.hourly.dewpoint_2m[0]);
         ui.press.textContent = Math.round(data.hourly.pressure_msl[0]);
         ui.vis.textContent = (data.hourly.visibility[0] / 1609).toFixed(1);
-        
+
+        // Keep your original IDs/behavior:
         ui.rise.textContent = data.daily.sunrise[0].slice(-5);
         ui.set.textContent = data.daily.sunset[0].slice(-5);
 
         renderIcon(curr.weathercode, curr.is_day);
-        
+
         // Load Radar
         ui.radar.innerHTML = `<iframe src="https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&detailLat=${lat}&detailLon=${lon}&width=650&height=450&zoom=10&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1" width="100%" height="100%" frameborder="0"></iframe>`;
 
+        // Update celestial background mode based on is_day and proximity to sunrise/sunset (simple + stable)
+        updateCelestialMode(curr.is_day, ui.rise.textContent, ui.set.textContent);
+
       } catch(e) { console.error(e); }
+    }
+
+    function updateCelestialMode(isDay, sunriseHHMM, sunsetHHMM){
+      const bg = document.getElementById('celestial-bg');
+      const stars = document.getElementById('celestial-stars');
+      if(!bg || !stars) return;
+
+      // default day/night based on API
+      let mode = isDay ? 'day' : 'night';
+
+      // twilight window around sunrise/sunset
+      const now = new Date();
+      const nowMin = now.getHours()*60 + now.getMinutes();
+      function parseHM(hm){
+        const parts = String(hm||'').split(':');
+        if(parts.length !== 2) return null;
+        const h = parseInt(parts[0],10), m = parseInt(parts[1],10);
+        if(Number.isNaN(h)||Number.isNaN(m)) return null;
+        return h*60+m;
+      }
+      const rise = parseHM(sunriseHHMM);
+      const set = parseHM(sunsetHHMM);
+      const tw = 35;
+
+      if(rise !== null && Math.abs(nowMin - rise) <= tw) mode = 'twilight';
+      if(set  !== null && Math.abs(nowMin - set)  <= tw) mode = 'twilight';
+
+      bg.classList.remove('day','twilight','night');
+      bg.classList.add(mode);
+      stars.style.opacity = (mode === 'night') ? '1' : '0';
     }
 
     // ===== RENDER ICON & DESC =====
     function renderIcon(code, isDay) {
         const stage = ui.iconStage;
         let html = `<div class="glass-cloud"></div>`;
-        
+
         if (code < 3) { // Sunny/Clear
             html += `<div class="sun-glare" style="opacity:${isDay?0.8:0.3}; background:${isDay?'radial-gradient(circle, #fbbf24 0%, transparent 70%)':'radial-gradient(circle, #f8fafc 0%, transparent 70%)'}"></div>`;
         }
-        
+
         if (code > 50) { // Rain
             for(let i=0; i<5; i++) {
                 html += `<div class="rain-drop" style="left:${20 + i*15}px; animation-delay:${i*0.2}s"></div>`;
