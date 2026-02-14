@@ -785,7 +785,8 @@
       region: "",
       unit: localStorage.getItem('nw_unit') || 'fahrenheit', // 'fahrenheit' or 'celsius'
       use24h: localStorage.getItem('nw_24h') === 'true',
-      windSpeed: 0 // stored for simulation
+      windSpeed: 0, // stored for simulation
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // Defaults to user local time
     };
 
     const ui = {
@@ -828,14 +829,29 @@
       } else { getLocationByIP(); }
     }
 
-    // ===== CLOCK =====
+    // ===== CLOCK (UPDATED FOR TIMEZONE SUPPORT) =====
     function updateClock() {
         const now = new Date();
-        const opts = { hour: 'numeric', minute: '2-digit', hour12: !state.use24h };
-        if(state.use24h) { opts.second = '2-digit'; } // optional seconds for 24h
         
-        document.getElementById('clock-time').textContent = now.toLocaleTimeString('en-US', {hour12: !state.use24h, hour: '2-digit', minute:'2-digit', second:'2-digit'});
-        document.getElementById('clock-date').textContent = now.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+        // Define options for time formatting using the fetched Timezone
+        const timeOpts = { 
+          timeZone: state.timezone, 
+          hour: 'numeric', 
+          minute: '2-digit', 
+          hour12: !state.use24h 
+        };
+        if(state.use24h) { timeOpts.second = '2-digit'; }
+
+        // Define options for date formatting using the fetched Timezone
+        const dateOpts = {
+          timeZone: state.timezone,
+          weekday: 'short', 
+          month: 'short', 
+          day: 'numeric'
+        };
+        
+        document.getElementById('clock-time').textContent = now.toLocaleTimeString('en-US', timeOpts);
+        document.getElementById('clock-date').textContent = now.toLocaleDateString('en-US', dateOpts);
     }
 
     // ===== GEOCODING & SEARCH =====
@@ -900,6 +916,11 @@
         const data = await res.json();
         const curr = data.current_weather;
         
+        // --- KEY CHANGE: UPDATE TIMEZONE ---
+        state.timezone = data.timezone; // Gets "America/Chicago", "Asia/Tokyo", etc.
+        updateClock(); // Force immediate clock update to new zone
+        // -----------------------------------
+
         // Main Cards
         ui.temp.textContent = Math.round(curr.temperature) + "°";
         ui.cond.textContent = getWeatherDesc(curr.weathercode);
@@ -937,8 +958,10 @@
     
     function formatAstroTime(isoString) {
       if(!isoString) return "--";
+      // We parse the date, but print it using the Location's timezone
       const date = new Date(isoString);
       return date.toLocaleTimeString([], {
+        timeZone: state.timezone,
         hour: 'numeric', 
         minute: '2-digit', 
         hour12: !state.use24h
