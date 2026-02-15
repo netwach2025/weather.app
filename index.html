@@ -116,13 +116,44 @@
     }
     .nav-logo { font-size: 2rem; color: var(--accent); margin-bottom: 2rem; filter: drop-shadow(0 0 15px rgba(34,211,238,0.6)); }
     .nav-item {
-      position: relative; width: 56px; height: 56px; border-radius: 18px; 
-      display: flex; align-items: center; justify-content: center;
-      color: var(--text-muted); font-size: 1.8rem; cursor: pointer;
-      border: none; background: transparent;
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+      position: relative;
+      width: 74px;
+      height: 64px;
+      padding: 10px 8px;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+
+      color: var(--text-muted);
+      font-size: 1.65rem;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-    .nav-item:hover { transform: scale(1.35); background: rgba(255,255,255,0.15); color: #fff; box-shadow: 0 0 25px rgba(165, 243, 252, 0.4); z-index: 10; }
+    .nav-item i { line-height: 1; }
+    .nav-label {
+      font-size: 0.68rem;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      opacity: 0.82;
+      color: inherit;
+      user-select: none;
+      white-space: nowrap;
+      transform: translateY(-1px);
+      pointer-events: none;
+    }
+    .nav-item:hover {
+      transform: translateY(-2px) scale(1.12);
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      box-shadow: 0 0 25px rgba(165, 243, 252, 0.35);
+      z-index: 10;
+    }
     .nav-item.active { color: var(--accent); background: rgba(255,255,255,0.05); box-shadow: 0 0 20px rgba(0,0,0,0.5); }
     .nav-item.active::before {
       content: ''; position: absolute; left: -16px; top: 50%; transform: translateY(-50%);
@@ -133,9 +164,45 @@
     @media (max-width: 768px) {
       .app-container { flex-direction: column-reverse; }
       .sidebar { width: 100%; height: calc(70px + var(--safe-bottom)); flex-direction: row; justify-content: space-evenly; padding: 10px 10px calc(10px + var(--safe-bottom)) 10px; border-right: none; border-top: 1px solid var(--glass-border); background: rgba(10, 10, 10, 0.85); }
-      .nav-logo { display: none; } .nav-item { width: 48px; height: 48px; font-size: 1.4rem; } .spacer { display: none; } 
-      .nav-item.active::before { left: 50%; top: auto; bottom: -8px; transform: translateX(-50%); width: 40%; height: 4px; }
-      .nav-item:hover { transform: scale(1.1); }
+      .nav-logo { display: none; } .nav-item {
+      position: relative;
+      width: 74px;
+      height: 64px;
+      padding: 10px 8px;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+
+      color: var(--text-muted);
+      font-size: 1.65rem;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .nav-item i { line-height: 1; }
+    .nav-label {
+      font-size: 0.68rem;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      opacity: 0.82;
+      color: inherit;
+      user-select: none;
+      white-space: nowrap;
+      transform: translateY(-1px);
+      pointer-events: none;
+    }
+    .nav-item:hover {
+      transform: translateY(-2px) scale(1.12);
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      box-shadow: 0 0 25px rgba(165, 243, 252, 0.35);
+      z-index: 10;
+    }
       .alert-ribbon-wrapper { height: 40px; } 
       .alert-ribbon-wrapper.severe-active { height: 50px; }
       .alert-bubble { font-size: 0.7rem; padding: 0.3rem 0.8rem; }
@@ -377,12 +444,12 @@
   <div class="app-container">
     <nav class="sidebar">
       <div class="nav-logo"><i class="ph-fill ph-planet"></i></div>
-      <button class="nav-item active" onclick="switchTab('dashboard', this)" aria-label="Dashboard" title="Dashboard"><i class="ph-bold ph-cloud-sun"></i></button>
-      <button class="nav-item" onclick="switchTab('wind', this)" aria-label="Wind" title="Wind"><i class="ph-bold ph-wind"></i></button>
-      <button class="nav-item" onclick="switchTab('radar', this)" aria-label="Radar" title="Radar"><i class="ph-bold ph-broadcast"></i></button>
-      <button class="nav-item" onclick="window.location.href='updates.html'" aria-label="System Logs" title="System Logs"><i class="ph-bold ph-read-cv-logo"></i></button>
+      <button class="nav-item active" onclick="switchTab('dashboard', this)" aria-label="Dashboard" title="Dashboard"><i class="ph-bold ph-cloud-sun"></i><span class="nav-label">Dashboard</span></button>
+      <button class="nav-item" onclick="switchTab('wind', this)" aria-label="Wind" title="Wind"><i class="ph-bold ph-wind"></i><span class="nav-label">Wind</span></button>
+      <button class="nav-item" onclick="switchTab('radar', this)" aria-label="Radar" title="Radar"><i class="ph-bold ph-broadcast"></i><span class="nav-label">Radar</span></button>
+      <button class="nav-item" onclick="window.location.href='updates.html'" aria-label="System Logs" title="System Logs"><i class="ph-bold ph-read-cv-logo"></i><span class="nav-label">System Logs</span></button>
       <div class="spacer" style="flex:1"></div>
-      <button class="nav-item" onclick="switchTab('settings', this)" aria-label="Settings" title="Settings"><i class="ph-bold ph-gear"></i></button>
+      <button class="nav-item" onclick="switchTab('settings', this)" aria-label="Settings" title="Settings"><i class="ph-bold ph-gear"></i><span class="nav-label">Settings</span></button>
     </nav>
 
     <main class="main-content">
