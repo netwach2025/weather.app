@@ -310,6 +310,75 @@
       opacity: 0.9;
     }
 
+
+    /* Isobar lines (subtle atmospheric depth) */
+    .app-isobars{
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      opacity: 0.22; mix-blend-mode: screen;
+      background-image:
+        radial-gradient(900px 420px at 50% 18%, rgba(165,243,252,0.10), transparent 65%),
+        repeating-radial-gradient(circle at 40% 20%, rgba(255,255,255,0.06) 0 1px, transparent 1px 32px),
+        repeating-radial-gradient(circle at 65% 55%, rgba(255,255,255,0.05) 0 1px, transparent 1px 40px);
+      filter: blur(0.2px);
+      animation: isobarDrift 26s linear infinite;
+    }
+    @keyframes isobarDrift{
+      0%{ transform: translate3d(0,0,0) scale(1.02); }
+      50%{ transform: translate3d(-1.2%, 0.8%,0) scale(1.02); }
+      100%{ transform: translate3d(0,0,0) scale(1.02); }
+    }
+
+    /* Wind vector field overlay (canvas) */
+    .app-windfield{
+      position: fixed; inset: 0; z-index: 0; pointer-events:none;
+      opacity: 0.22;
+      filter: blur(0.2px);
+    }
+
+    /* Hero: pressure ring behind temperature */
+    .hero-metric-wrap{ position: relative; display: inline-block; }
+    .pressure-ring{
+      position:absolute; inset: -18px -24px -18px -24px;
+      opacity: 0.55;
+      pointer-events:none;
+      filter: drop-shadow(0 0 18px rgba(165,243,252,0.18));
+    }
+    .pressure-ring svg{ width: 100%; height: 100%; }
+    .pressure-ring .ring-bg{ opacity: 0.22; }
+    .pressure-ring .ring-fg{
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.8s var(--ease-out);
+    }
+
+    /* Stability card styling */
+    .stability-badge{
+      display:inline-flex; align-items:center; gap:0.5rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.78);
+    }
+    .stability-big{ font-size: 3.1rem; font-weight: 800; letter-spacing: -2px; }
+    .stability-sub{ color: rgba(255,255,255,0.82); line-height: 1.35; margin-top: 0.4rem; }
+
+    /* Settings blocks */
+    .settings-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; gap:1rem; }
+    .settings-row small{ display:block; opacity:0.65; margin-top:0.25rem; }
+    .select{
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
+      color: white;
+      border-radius: 14px;
+      padding: 10px 12px;
+      outline: none;
+      min-width: 160px;
+    }
+    .select:focus{ border-color: rgba(165,243,252,0.35); box-shadow: 0 0 22px rgba(165,243,252,0.18); }
+
     /* Premium interactive hover for glass cards (avoid hero-card) */
     .glass-card{
       transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out), border-color .25s var(--ease-out), background .25s var(--ease-out);
@@ -434,6 +503,8 @@
   <div class="app-bg" id="app-bg"></div>
   <div class="app-noise"></div>
   <div class="app-vignette"></div>
+  <div class="app-isobars" aria-hidden="true"></div>
+  <canvas class="app-windfield" id="windfield" aria-hidden="true"></canvas>
 
   <div class="alert-ribbon-wrapper" id="ribbon">
      <div class="alert-track" id="alert-track">
@@ -491,6 +562,16 @@
                   <h3>NetWatch Intelligence</h3>
                   <p id="ai-summary">Analyzing atmospheric data layers to generate strategic briefing...</p>
               </div>
+          </div>
+
+          <div class="glass-card metric-card" data-metric="stability" style="grid-column: 1 / -1;">
+            <div class="metric-label">Atmospheric Stability Index</div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+              <div class="stability-big" id="val-stability">--%</div>
+              <div class="stability-badge" id="stability-badge"><i class="ph-bold ph-shield-check"></i> Nominal</div>
+            </div>
+            <div class="stability-sub" id="stability-desc">Scanning pressure, wind shear, and thermal gradients…</div>
+            <div class="tap-hint">Tap for details</div>
           </div>
 
           <div class="forecast-container" id="forecast-grid"></div>
@@ -554,6 +635,42 @@
             </div>
             
             <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,0.1);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
+                <span style="display:flex; flex-direction:column;">
+                  <span>Voice Alerts & Status Readout</span>
+                  <span style="font-size:0.8rem; opacity:0.6;">Tap once to enable speech (browser policy)</span>
+                </span>
+                <label class="switch"><input type="checkbox" id="toggle-voice" onchange="toggleVoice()"><span class="slider"></span></label>
+              </div>
+
+              <div class="settings-row">
+                <span style="display:flex; flex-direction:column;">
+                  <span>All-Clear Interval</span>
+                  <small>System speaks every X minutes</small>
+                </span>
+                <select class="select" id="voice-interval" onchange="setVoiceInterval(this.value)">
+                  <option value="0">Off</option>
+                  <option value="5">5 min</option>
+                  <option value="10">10 min</option>
+                  <option value="15">15 min</option>
+                  <option value="30">30 min</option>
+                </select>
+              </div>
+
+              <div class="settings-row">
+                <span style="display:flex; flex-direction:column;">
+                  <span>Voice Persona</span>
+                  <small>Choose how NetWatch speaks</small>
+                </span>
+                <select class="select" id="voice-persona" onchange="setVoicePersona(this.value)">
+                  <option value="mission">Mission Control</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="cinematic">Cinematic</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,0.1);">
                 <span style="display:block; margin-bottom:0.5rem; opacity:0.7;">Developer Tools</span>
                 <button onclick="simulateSevereWeather()" style="width:100%; background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#fca5a5; padding:12px; border-radius:12px; cursor:pointer; font-weight:700;">
                     <i class="ph-bold ph-siren"></i> TEST RED ALERT GRAPHICS
@@ -574,16 +691,17 @@
   </div>
 
   <script>
-    let state = { lat: null, lon: null, unit: localStorage.getItem('nw_unit') || 'fahrenheit', use24h: localStorage.getItem('nw_24h') === 'true', timezone: "UTC", pushEnabled: false, voiceEnabled: localStorage.getItem('nw_voice') === 'true', voiceIntervalMin: parseInt(localStorage.getItem('nw_voice_interval')||'10',10), lastSpokenKey: localStorage.getItem('nw_last_spoken') || '' };
-    const ui = { loc: document.getElementById('loc-name'), temp: document.getElementById('val-temp'), cond: document.getElementById('val-cond'), humid: document.getElementById('val-humid'), dew: document.getElementById('val-dew'), press: document.getElementById('val-press'), vis: document.getElementById('val-vis'), windBig: document.getElementById('wind-big'), radar: document.getElementById('radar-container'), iconStage: document.getElementById('icon-stage'), forecastGrid: document.getElementById('forecast-grid'), ticker: document.getElementById('status-ticker'), alertTrack: document.getElementById('alert-track'), aiSummary: document.getElementById('ai-summary'), ribbon: document.getElementById('ribbon') };
+    let state = { lat: null, lon: null, unit: localStorage.getItem('nw_unit') || 'fahrenheit', use24h: localStorage.getItem('nw_24h') === 'true', timezone: "UTC", pushEnabled: false, voiceEnabled: localStorage.getItem('nw_voice') === 'true', voiceIntervalMin: parseInt(localStorage.getItem('nw_voice_interval')||'10',10), voicePersona: localStorage.getItem('nw_voice_persona') || 'mission', lastSpokenKey: localStorage.getItem('nw_last_spoken') || '', currentAlertLevel: 'safe', lastWindSpeed: 0, lastPressure: 1013, lastStability: null };
+    const ui = { loc: document.getElementById('loc-name'), temp: document.getElementById('val-temp'), cond: document.getElementById('val-cond'), humid: document.getElementById('val-humid'), dew: document.getElementById('val-dew'), press: document.getElementById('val-press'), vis: document.getElementById('val-vis'), windBig: document.getElementById('wind-big'), radar: document.getElementById('radar-container'), iconStage: document.getElementById('icon-stage'), forecastGrid: document.getElementById('forecast-grid'), ticker: document.getElementById('status-ticker'), alertTrack: document.getElementById('alert-track'), aiSummary: document.getElementById('ai-summary'), ribbon: document.getElementById('ribbon'), stability: document.getElementById('val-stability'), stabilityBadge: document.getElementById('stability-badge'), stabilityDesc: document.getElementById('stability-desc'), ringFg: document.getElementById('ring-fg'), windCanvas: document.getElementById('windfield') };
 
     function initApp() {
       document.getElementById('toggle-unit').checked = (state.unit === 'celsius');
       document.getElementById('toggle-time').checked = state.use24h;
       const v = document.getElementById('toggle-voice'); if(v) v.checked = state.voiceEnabled;
       const sel = document.getElementById('voice-interval'); if(sel){ sel.value = String(state.voiceIntervalMin||10); }
+      const per = document.getElementById('voice-persona'); if(per){ per.value = String(state.voicePersona||'mission'); }
       if(state.voiceEnabled){ armVoice(true); }
-      setInterval(updateClock, 1000); updateClock(); startTicker();
+      setInterval(updateClock, 1000); updateClock(); startTicker(); setupWindfield();
       if (navigator.geolocation) { navigator.geolocation.getCurrentPosition((pos) => { state.lat = pos.coords.latitude; state.lon = pos.coords.longitude; fetchLocationName(state.lat, state.lon); }, () => { getLocationByIP(); }); } else { getLocationByIP(); }
       if(Notification.permission === 'granted') state.pushEnabled = true;
     }
@@ -678,6 +796,9 @@
         };
         render(); render(); // Duplicate for scroll
 
+        // Persist alert level
+        state.currentAlertLevel = severeActive ? 'severe' : (alerts.some(a=>a.type==='watch') ? 'watch' : 'safe');
+
         // TRIGGER VISUAL ALARM
         if(severeActive) {
             ui.ribbon.classList.add('severe-active');
@@ -697,10 +818,169 @@
         alert("Red Alert Graphics Activated. Check the top ribbon.");
     }
 
+
+    function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+    function setVoicePersona(val){
+      state.voicePersona = val || 'mission';
+      localStorage.setItem('nw_voice_persona', state.voicePersona);
+    }
+
+    function personaPhrases(){
+      const p = state.voicePersona || 'mission';
+      if(p==='minimal'){
+        return {
+          online: () => 'NetWatch online.',
+          allClear: (loc) => `All clear for ${loc}.`,
+          severe: (t,b) => `Alert. ${t}. ${b}`,
+          watch: (t) => `Watch. ${t}.`,
+          status: (loc, t, c, s) => `Status ${loc}. ${t}. ${c}. Stability ${s}.`
+        };
+      }
+      if(p==='cinematic'){
+        return {
+          online: () => 'NetWatch core awakened. Atmospheric scan engaged.',
+          allClear: (loc) => `NetWatch scan complete for ${loc}. Skies stable. No active hazards.`,
+          severe: (t,b) => `NetWatch red alert. ${t}. ${b}. Seek safety immediately.`,
+          watch: (t) => `NetWatch advisory. ${t}. Maintain awareness.`,
+          status: (loc, t, c, s) => `NetWatch report for ${loc}. ${t}. ${c}. Stability index ${s}.`
+        };
+      }
+      // mission control default
+      return {
+        online: () => 'NetWatch alert system online. Scanning atmospheric variables.',
+        allClear: (loc) => `NetWatch atmospheric scan complete for ${loc}. All clear. System integrity nominal.`,
+        severe: (t,b) => `NetWatch warning. ${t}. ${b}.`,
+        watch: (t) => `NetWatch watch issued. ${t}.`,
+        status: (loc, t, c, s) => `NetWatch status for ${loc}. ${t}. ${c}. Stability index ${s}.`
+      };
+    }
+
+    function computeStabilityIndex({tNow, tPrev, wNow, wPrev, pNow, pPrev, precipProb}){
+      // Simple but effective blend: pressure stability + wind shear + temp change + precip chance
+      const dT = Math.abs((tNow ?? 0) - (tPrev ?? tNow ?? 0));
+      const dW = Math.abs((wNow ?? 0) - (wPrev ?? wNow ?? 0));
+      const dP = Math.abs((pNow ?? 1013) - (pPrev ?? pNow ?? 1013));
+      const precip = clamp((precipProb ?? 0)/100, 0, 1);
+
+      // normalize (tuned for real-world ranges)
+      const nT = clamp(dT / 10, 0, 1);        // 10° change in ~3h is big
+      const nW = clamp(dW / 20, 0, 1);        // 20 mph change is big
+      const nP = clamp(dP / 10, 0, 1);        // 10 hPa change is big
+
+      // stability is inverse of volatility
+      let stability = 1 - (0.34*nT + 0.34*nW + 0.22*nP + 0.10*precip);
+      stability = clamp(stability, 0, 1);
+      return Math.round(stability*100);
+    }
+
+    function updateStabilityUI(val){
+      if(!ui.stability || !ui.stabilityBadge || !ui.stabilityDesc) return;
+      if(val == null || Number.isNaN(val)){
+        ui.stability.textContent = '--%';
+        ui.stabilityBadge.innerHTML = '<i class="ph-bold ph-activity"></i> Scanning';
+        ui.stabilityDesc.textContent = 'Scanning pressure, wind shear, and thermal gradients…';
+        return;
+      }
+      state.lastStability = val;
+      ui.stability.textContent = `${val}%`;
+      if(val >= 80){
+        ui.stabilityBadge.innerHTML = '<i class="ph-bold ph-shield-check"></i> Nominal';
+        ui.stabilityDesc.textContent = 'Atmosphere stable. No convective instability detected.';
+      } else if(val >= 60){
+        ui.stabilityBadge.innerHTML = '<i class="ph-bold ph-eye"></i> Watch';
+        ui.stabilityDesc.textContent = 'Moderate variability. Monitor for rapid shifts in wind or pressure.';
+      } else {
+        ui.stabilityBadge.innerHTML = '<i class="ph-bold ph-warning"></i> Unstable';
+        ui.stabilityDesc.textContent = 'Instability detected. Expect fast-changing conditions.';
+      }
+    }
+
+    function updatePressureRing(hPa){
+      if(!ui.ringFg) return;
+      const minP = 980, maxP = 1040;
+      const p = clamp((hPa - minP)/(maxP - minP), 0, 1);
+      const circumference = 289; // matches dasharray
+      const offset = circumference * (1 - p);
+      ui.ringFg.style.strokeDashoffset = String(Math.round(offset));
+    }
+
+    function setupWindfield(){
+      const canvas = ui.windCanvas;
+      if(!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w=0,h=0, dpr=1;
+      const prefersReduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const particles = [];
+      const COUNT = 110;
+
+      function resize(){
+        dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        w = canvas.clientWidth = window.innerWidth;
+        h = canvas.clientHeight = window.innerHeight;
+        canvas.width = Math.floor(w*dpr);
+        canvas.height = Math.floor(h*dpr);
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+      }
+      function rand(){ return Math.random(); }
+      function resetParticle(p){
+        p.x = rand()*w;
+        p.y = rand()*h;
+        p.v = 0.4 + rand()*1.8;
+        p.a = rand()*Math.PI*2;
+        p.life = 120 + rand()*220;
+      }
+      for(let i=0;i<COUNT;i++){
+        const p={x:0,y:0,v:1,a:0,life:0};
+        resetParticle(p);
+        particles.push(p);
+      }
+
+      function fieldAngle(x,y,t){
+        // smooth directional field (sin/cos), modulated by wind speed
+        const speed = clamp((state.lastWindSpeed||0)/25, 0.15, 1.1);
+        return (
+          Math.sin((x*0.003)+(t*0.0009))*1.2 +
+          Math.cos((y*0.0035)-(t*0.0011))*1.0 +
+          Math.sin(((x+y)*0.0018)+(t*0.0007))*0.8
+        ) * speed;
+      }
+
+      let last=performance.now();
+      function tick(now){
+        if(prefersReduce) return; // respect reduced motion
+        const dt = Math.min(40, now-last);
+        last = now;
+        ctx.clearRect(0,0,w,h);
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for(const p of particles){
+          const ang = fieldAngle(p.x,p.y,now) + p.a*0.15;
+          const vx = Math.cos(ang) * p.v * (dt/16);
+          const vy = Math.sin(ang) * p.v * (dt/16);
+          const x2 = p.x + vx;
+          const y2 = p.y + vy;
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(x2, y2);
+          p.x = x2; p.y = y2;
+          p.life -= 1;
+          if(p.x< -10 || p.x> w+10 || p.y< -10 || p.y> h+10 || p.life<=0) resetParticle(p);
+        }
+        ctx.strokeStyle = 'rgba(165,243,252,0.55)';
+        ctx.stroke();
+        requestAnimationFrame(tick);
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+      if(!prefersReduce) requestAnimationFrame(tick);
+    }
+
     async function fetchWeather() {
       if (!state.lat || !state.lon) return;
       const unitParam = state.unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${state.lat}&longitude=${state.lon}&current_weather=true&hourly=relativehumidity_2m,visibility,pressure_msl,dewpoint_2m&daily=weathercode,temperature_2m_max,temperature_2m_min&windspeed_unit=mph&temperature_unit=${unitParam}&timezone=auto`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${state.lat}&longitude=${state.lon}&current_weather=true&hourly=temperature_2m,windspeed_10m,precipitation_probability,relativehumidity_2m,visibility,pressure_msl,dewpoint_2m&daily=weathercode,temperature_2m_max,temperature_2m_min&windspeed_unit=mph&temperature_unit=${unitParam}&timezone=auto`;
       try {
         const res = await fetch(url); const data = await res.json(); const curr = data.current_weather;
         state.timezone = data.timezone; updateClock(); updateTheme(curr.weathercode, curr.is_day);
@@ -712,8 +992,33 @@
         checkPushAlerts(curr.weathercode);
 
         ui.temp.textContent = Math.round(curr.temperature) + "°"; ui.cond.textContent = getWeatherDesc(curr.weathercode); ui.windBig.textContent = Math.round(curr.windspeed);
-        ui.humid.textContent = data.hourly.relativehumidity_2m[0] + "%"; ui.dew.textContent = Math.round(data.hourly.dewpoint_2m[0]) + "°"; ui.press.textContent = Math.round(data.hourly.pressure_msl[0]);
-        let vis = data.hourly.visibility[0]; let isMetric = state.unit === 'celsius';
+        // Align hourly arrays to the current timestamp
+        const idx = (data.hourly?.time && curr.time) ? data.hourly.time.indexOf(curr.time) : 0;
+        const iNow = (idx >= 0 ? idx : 0);
+        const iPrev = Math.max(iNow - 3, 0);
+
+        ui.humid.textContent = (data.hourly.relativehumidity_2m[iNow] ?? data.hourly.relativehumidity_2m[0]) + "%";
+        ui.dew.textContent = Math.round(data.hourly.dewpoint_2m[iNow] ?? data.hourly.dewpoint_2m[0]) + "°";
+        const pNow = Math.round(data.hourly.pressure_msl[iNow] ?? data.hourly.pressure_msl[0]);
+        ui.press.textContent = pNow;
+        state.lastPressure = pNow;
+        updatePressureRing(pNow);
+
+        // Stability index
+        const st = computeStabilityIndex({
+          tNow: data.hourly.temperature_2m[iNow],
+          tPrev: data.hourly.temperature_2m[iPrev],
+          wNow: data.hourly.windspeed_10m[iNow] ?? curr.windspeed,
+          wPrev: data.hourly.windspeed_10m[iPrev] ?? curr.windspeed,
+          pNow: data.hourly.pressure_msl[iNow],
+          pPrev: data.hourly.pressure_msl[iPrev],
+          precipProb: data.hourly.precipitation_probability?.[iNow] ?? 0
+        });
+        updateStabilityUI(st);
+
+        // Feed windfield
+        state.lastWindSpeed = curr.windspeed || 0;
+        let vis = data.hourly.visibility[iNow] ?? data.hourly.visibility[0]; let isMetric = state.unit === 'celsius';
         ui.vis.textContent = isMetric ? (vis / 1000).toFixed(1) : (vis / 1609).toFixed(1);
         document.querySelector('[data-metric="visibility"] .metric-sub').innerText = isMetric ? 'KM' : 'Miles';
         renderIcon(curr.weathercode, curr.is_day); renderForecast(data.daily);
@@ -789,11 +1094,19 @@
       const mins = Number(state.voiceIntervalMin||0);
       if(mins>0){
         voiceTimer = setInterval(() => {
-          speak("NetWatch alert system. All clear. No severe activity detected.", {priority:false});
+          const loc = (ui.loc?.textContent||'your area');
+          // If a watch/severe is active, speak a shorter status instead of claiming all-clear
+          if(state.currentAlertLevel === 'severe'){
+            speak(personaPhrases().status(loc, 'Alert level severe', ui.cond?.textContent||'conditions unknown', (state.lastStability!=null?state.lastStability+' percent':'unknown')), {priority:false});
+          } else if(state.currentAlertLevel === 'watch'){
+            speak(personaPhrases().status(loc, 'Alert level watch', ui.cond?.textContent||'conditions unknown', (state.lastStability!=null?state.lastStability+' percent':'unknown')), {priority:false});
+          } else {
+            speak(personaPhrases().allClear(loc), {priority:false});
+          }
         }, mins*60*1000);
       }
       if(!silent){
-        speak("NetWatch alert system online.", {priority:true});
+        speak(personaPhrases().online(), {priority:true});
       }
     }
     function toggleVoice(){
@@ -806,7 +1119,8 @@
         const loc = (ui.loc?.textContent||"your area");
         const t = ui.temp?.textContent ? `Current temperature ${ui.temp.textContent}.` : "";
         const c = ui.cond?.textContent ? `Conditions ${ui.cond.textContent}.` : "";
-        speak(`NetWatch status for ${loc}. ${t} ${c}`.replace(/\s+/g,' ').trim(), {priority:false});
+        const s = (state.lastStability!=null? (state.lastStability+' percent') : 'unknown');
+        speak(personaPhrases().status(loc, t||'Temperature unknown', c||'Conditions unknown', s).replace(/\s+/g,' ').trim(), {priority:false});
       } else {
         clearInterval(voiceTimer);
         try{ if('speechSynthesis' in window) window.speechSynthesis.cancel(); }catch(e){}
@@ -822,13 +1136,23 @@
       if(key === state.lastSpokenKey) return;
       state.lastSpokenKey = key;
       localStorage.setItem('nw_last_spoken', state.lastSpokenKey);
-      speak(`NetWatch alert. ${title}. ${body}`, {priority:true});
+      speak(personaPhrases().severe(title, body), {priority:true});
     }
 
     function switchTab(id, btn) { document.querySelectorAll('.view-section').forEach(e => e.classList.remove('active')); document.getElementById('view-'+id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active')); btn.classList.add('active'); }
     function renderIcon(code, isDay) { const stage = ui.iconStage; let html = `<div class="glass-cloud"></div>`; if (code < 3) html += `<div class="sun-glare" style="opacity:${isDay?0.8:0.3}; background:${isDay?'radial-gradient(circle, #fbbf24 0%, transparent 70%)':'radial-gradient(circle, #f8fafc 0%, transparent 70%)'}"></div>`; if (code > 50) { for(let i=0; i<5; i++) html += `<div class="rain-drop" style="left:${20 + i*15}px; animation-delay:${i*0.2}s"></div>`; } stage.innerHTML = html; }
     const overlay = document.getElementById('detail-overlay'); const closeBtn = document.getElementById('detail-close');
-    document.querySelectorAll('.metric-card').forEach(c => c.addEventListener('click', () => { overlay.classList.add('active'); document.getElementById('detail-title').textContent = c.querySelector('.metric-label').textContent; document.getElementById('detail-desc').textContent = "Real-time sensor data provided by Open-Meteo."; }));
+    document.querySelectorAll('.metric-card').forEach(c => c.addEventListener('click', () => {
+      overlay.classList.add('active');
+      const title = c.querySelector('.metric-label')?.textContent || 'Detail';
+      document.getElementById('detail-title').textContent = title;
+      if(c.dataset.metric === 'stability'){
+        const s = (state.lastStability!=null ? state.lastStability+'%' : '—');
+        document.getElementById('detail-desc').textContent = `Stability Index ${s}. This is a blended estimate from recent pressure drift, wind change, temperature change, and precipitation probability. (Tunable in code.)`;
+      } else {
+        document.getElementById('detail-desc').textContent = 'Real-time sensor data provided by Open-Meteo.';
+      }
+    }));
     closeBtn.addEventListener('click', () => overlay.classList.remove('active'));
 
     initApp();
