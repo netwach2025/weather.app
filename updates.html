@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>NetWatch Pro | System Logs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-deep: #050505;
+      --accent: #a5f3fc;
+      --accent-glow: rgba(165, 243, 252, 0.4);
+      --red-alert: #ef4444;
+      --ai-indigo: #818cf8;
+      --glass-surface: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* BACKGROUND FX */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: -1;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: radial-gradient(circle at 50% 0%, black 40%, transparent 100%);
+    }
+    
+    .bg-glow {
+      position: fixed; top: -20%; left: 50%; transform: translateX(-50%);
+      width: 80vw; height: 60vh;
+      background: radial-gradient(circle, rgba(165, 243, 252, 0.15), transparent 70%);
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    /* NAV */
+    .top-nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      padding: 1.5rem 2rem;
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(20px);
+      z-index: 100;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .back-btn {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--glass-border);
+      padding: 10px 20px;
+      border-radius: 99px;
+      color: #fff; text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    .back-btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 20px var(--accent-glow); }
+
+    /* HERO STATS */
+    .log-header {
+      padding: 8rem 2rem 4rem 2rem;
+      max-width: 1000px; margin: 0 auto;
+      text-align: center;
+    }
+    .log-title {
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -2px;
+      margin-bottom: 1rem;
+      background: linear-gradient(180deg, #fff, #94a3b8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem; margin-top: 3rem;
+    }
+    .stat-card {
+      background: var(--glass-surface); border: 1px solid var(--glass-border);
+      padding: 1.5rem; border-radius: 20px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .stat-val { font-size: 2rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+    .stat-label { font-size: 0.8rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
+
+    /* TIMELINE */
+    .timeline {
+      max-width: 800px; margin: 0 auto; padding: 2rem;
+      position: relative;
+    }
+    /* The Center Line */
+    .timeline::before {
+      content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px;
+      background: linear-gradient(180deg, var(--accent), rgba(255,255,255,0.1) 80%, transparent);
+      transform: translateX(-50%);
+      z-index: 0;
+    }
+
+    .log-entry {
+      display: flex; justify-content: center; align-items: center;
+      margin-bottom: 6rem; position: relative;
+      opacity: 0; transform: translateY(50px); /* For scroll anim */
+      transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .log-entry.visible { opacity: 1; transform: translateY(0); }
+
+    /* Alternating Sides */
+    .log-entry:nth-child(odd) { flex-direction: row-reverse; }
+    .log-entry:nth-child(odd) .entry-content { text-align: left; }
+    .log-entry:nth-child(even) .entry-content { text-align: right; }
+
+    .entry-marker {
+      position: absolute; left: 50%; width: 20px; height: 20px;
+      background: #000; border: 4px solid var(--accent);
+      border-radius: 50%; transform: translateX(-50%);
+      z-index: 10;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .entry-date {
+      width: 50%; padding: 0 3rem;
+      font-family: 'JetBrains Mono', monospace;
+      opacity: 0.5; font-size: 0.9rem;
+    }
+    .log-entry:nth-child(odd) .entry-date { text-align: right; }
+    .log-entry:nth-child(even) .entry-date { text-align: left; }
+
+    .entry-content {
+      width: 50%; padding: 0 3rem;
+    }
+
+    /* CARD STYLES */
+    .update-card {
+      background: rgba(20, 20, 20, 0.6);
+      border: 1px solid var(--glass-border);
+      padding: 2rem; border-radius: 24px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+      position: relative; overflow: hidden;
+    }
+    .update-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
+      pointer-events: none;
+    }
+    
+    .ver-tag {
+      display: inline-block; padding: 6px 12px; border-radius: 8px;
+      background: var(--accent); color: #000; font-weight: 800;
+      font-size: 0.8rem; margin-bottom: 1rem;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    /* Specific Tag Colors */
+    .tag-red { background: var(--red-alert); color: #fff; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+    .tag-ai { background: var(--ai-indigo); color: #fff; box-shadow: 0 0 15px rgba(129, 140, 248, 0.4); }
+
+    .entry-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: #fff; }
+    
+    .change-list { list-style: none; padding: 0; margin: 0; }
+    .change-list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 0.8rem; line-height: 1.5; color: rgba(255,255,255,0.8);
+      font-size: 0.95rem;
+    }
+    .change-list i { color: var(--accent); margin-top: 4px; }
+    
+    /* MOBILE */
+    @media (max-width: 768px) {
+      .timeline::before { left: 20px; }
+      .log-entry { flex-direction: column !important; align-items: flex-start; margin-left: 20px; border-left: 2px solid rgba(255,255,255,0.1); padding-left: 30px; margin-bottom: 4rem; }
+      .entry-marker { left: 20px; transform: translateX(-50%); }
+      .entry-date { width: 100%; padding: 0; margin-bottom: 0.5rem; text-align: left !important; }
+      .entry-content { width: 100%; padding: 0; text-align: left !important; }
+      .log-title { font-size: 2.5rem; }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <nav class="top-nav">
+    <div style="font-weight:800; font-size:1.2rem; display:flex; align-items:center; gap:10px;">
+      <i class="ph-fill ph-planet" style="color:var(--accent)"></i> NetWatch Logs
+    </div>
+    <a href="index.html" class="back-btn">
+      <i class="ph-bold ph-arrow-left"></i> Return to Dashboard
+    </a>
+  </nav>
+
+  <header class="log-header">
+    <div class="log-title">System Changelog</div>
+    <p style="opacity:0.6; font-size:1.1rem;">Comprehensive history of NetWatch Pro development cycles, feature deployments, and intelligence upgrades.</p>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val">v3.1</div>
+        <div class="stat-label">Current Build</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">5</div>
+        <div class="stat-label">Major Updates</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color:#4ade80">ONLINE</div>
+        <div class="stat-label">System Status</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="timeline">
+
+    <div class="log-entry">
+      <div class="entry-date">Today • 12:00 PM</div>
+      <div class="entry-marker" style="border-color:var(--red-alert)"></div>
+      <div class="entry-content">
+        <div class="update-card" style="border-top: 4px solid var(--red-alert);">
+          <span class="ver-tag tag-red">v3.1 RED ALERT</span>
+          <div class="entry-title">Severe Weather Engine</div>
+          <ul class="change-list">
+            <li><i class="ph-bold ph-globe" style="color:var(--red-alert)"></i> Integrated Zippopotam API for 5-digit Zip Code lookups.</li>
+            <li><i class="ph-bold ph-siren" style="color:var(--red-alert)"></i> Added visual "Red Flash" alarm ribbon for critical warnings.</li>
+            <li><i class="ph-bold ph-eye" style="color:var(--red-alert)"></i> Forecast-Aware logic now predicts storms hours in advance.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="log-entry">
+      <div class="entry-date">Feb 16, 2026</div>
+      <div class="entry-marker" style="border-color:var(--ai-indigo)"></div>
+      <div class="entry-content">
+        <div class="update-card" style="border-top: 4px solid var(--ai-indigo);">
+          <span class="ver-tag tag-ai">v3.0 INTELLIGENCE</span>
+          <div class="entry-title">AI & Push Alerts</div>
+          <ul class="change-list">
+            <li><i class="ph-bold ph-brain" style="color:var(--ai-indigo)"></i> Deployed Local Heuristic AI for natural language weather briefings.</li>
+            <li><i class="ph-bold ph-bell-ringing" style="color:var(--ai-indigo)"></i> Integrated Web Notification API for browser-based alerts.</li>
+            <li><i class="ph-bold ph-chart-bar" style="color:var(--ai-indigo)"></i> Added Pressure Trend Analysis algorithm.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="log-entry">
+      <div class="entry-date">Feb 15, 2026</div>
+      <div class="entry-marker"></div>
+      <div class="entry-content">
+        <div class="update-card">
+          <span class="ver-tag">v2.5 RIBBON</span>
+          <div class="entry-title">The Alert Ticker</div>
+          <ul class="change-list">
+            <li><i class="ph-bold ph-warning"></i> Implemented top-screen scrolling marquee.</li>
+            <li><i class="ph-bold ph-shield-check"></i> Built "Safe System" monitoring logic.</li>
+            <li><i class="ph-bold ph-paint-brush"></i> Refined safe-area insets for mobile layouts.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="log-entry">
+      <div class="entry-date">Feb 14, 2026</div>
+      <div class="entry-marker"></div>
+      <div class="entry-content">
+        <div class="update-card">
+          <span class="ver-tag">v2.3 GRAPHICS</span>
+          <div class="entry-title">Mac Dock Physics</div>
+          <ul class="change-list">
+            <li><i class="ph-bold ph-bezier-curve"></i> Added Spring Physics animation to sidebar icons.</li>
+            <li><i class="ph-bold ph-arrow-line-right"></i> Created glowing "Active Tab" neon indicators.</li>
+            <li><i class="ph-bold ph-cloud-sun"></i> Swapped generic assets for dedicated weather iconography.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="log-entry">
+      <div class="entry-date">Feb 10, 2026</div>
+      <div class="entry-marker"></div>
+      <div class="entry-content">
+        <div class="update-card">
+          <span class="ver-tag">v2.0 CORE</span>
+          <div class="entry-title">Foundation</div>
+          <ul class="change-list">
+            <li><i class="ph-bold ph-database"></i> Integrated Open-Meteo V1 API.</li>
+            <li><i class="ph-bold ph-palette"></i> Deployed Dynamic Gradient Engine (Blue/Gray/Purple).</li>
+            <li><i class="ph-bold ph-gear"></i> Built Settings panel for Unit (C/F) toggles.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Simple Scroll Observer for "Pop in" animation
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.log-entry').forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>

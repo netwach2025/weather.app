@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>NetWatch Pro | v3.0 AI</title>
+  <title>NetWatch Pro | v3.1 Red Alert</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,13 +12,14 @@
 
   <style>
     /* =========================================
-       NETWATCH PRO v3.0 (AI INTELLIGENCE CORE)
+       NETWATCH PRO v3.1 (LINKED UPDATES)
        ========================================= */
     :root {
       --bg-deep: #000000;
       --accent: #a5f3fc;
-      --ai-glow: #818cf8; /* Indigo for AI */
+      --ai-glow: #818cf8;
       --alert: #ef4444;
+      --warning: #f59e0b;
       --text-main: #ffffff;
       --text-muted: rgba(255, 255, 255, 0.6);
       
@@ -58,18 +59,33 @@
 
     .app-container { display: flex; height: 100vh; width: 100vw; }
 
-    /* ===== ALERT RIBBON ===== */
+    /* ===== ALERT RIBBON & FLASHING ANIMATIONS ===== */
     .alert-ribbon-wrapper {
         position: absolute; top: 0; left: 0; right: 0; height: 50px; z-index: 50;
         background: rgba(20, 0, 0, 0.4); backdrop-filter: blur(10px);
         border-bottom: 1px solid rgba(255, 50, 50, 0.2);
         display: flex; align-items: center; overflow: hidden; pointer-events: none;
+        transition: all 0.5s ease;
     }
+    
+    /* THE RED FLASHING ANIMATION */
+    @keyframes severeFlash {
+        0% { background: rgba(50, 0, 0, 0.6); border-bottom-color: rgba(239, 68, 68, 0.3); }
+        50% { background: rgba(239, 68, 68, 0.25); border-bottom-color: rgba(239, 68, 68, 1); }
+        100% { background: rgba(50, 0, 0, 0.6); border-bottom-color: rgba(239, 68, 68, 0.3); }
+    }
+    
+    .alert-ribbon-wrapper.severe-active {
+        animation: severeFlash 1.5s infinite ease-in-out;
+        height: 60px; /* Expands slightly when active */
+    }
+
     .alert-track {
         display: flex; gap: 2rem; padding-left: 100vw;
         animation: scrollRibbon 25s linear infinite;
     }
     @keyframes scrollRibbon { 0% { transform: translateX(0); } 100% { transform: translateX(-200%); } }
+    
     .alert-bubble {
         flex-shrink: 0; display: flex; align-items: center; gap: 0.8rem;
         padding: 0.4rem 1.2rem; background: rgba(239, 68, 68, 0.15);
@@ -81,6 +97,11 @@
         background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4);
         color: #d1fae5; box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
     }
+    /* ORANGE WATCH BUBBLE */
+    .alert-bubble.watch {
+        background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4);
+        color: #fcd34d; box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+    }
 
     /* ===== SIDEBAR ===== */
     .sidebar {
@@ -91,7 +112,7 @@
       display: flex; flex-direction: column; align-items: center;
       padding: 2.5rem 0; gap: 1.5rem; z-index: 100;
       transition: all 0.3s ease;
-      padding-top: 60px;
+      padding-top: 70px; /* Room for ribbon */
     }
     .nav-logo { font-size: 2rem; color: var(--accent); margin-bottom: 2rem; filter: drop-shadow(0 0 15px rgba(34,211,238,0.6)); }
     .nav-item {
@@ -115,7 +136,9 @@
       .nav-logo { display: none; } .nav-item { width: 48px; height: 48px; font-size: 1.4rem; } .spacer { display: none; } 
       .nav-item.active::before { left: 50%; top: auto; bottom: -8px; transform: translateX(-50%); width: 40%; height: 4px; }
       .nav-item:hover { transform: scale(1.1); }
-      .alert-ribbon-wrapper { height: 40px; } .alert-bubble { font-size: 0.7rem; padding: 0.3rem 0.8rem; }
+      .alert-ribbon-wrapper { height: 40px; } 
+      .alert-ribbon-wrapper.severe-active { height: 50px; }
+      .alert-bubble { font-size: 0.7rem; padding: 0.3rem 0.8rem; }
     }
 
     /* ===== CONTENT AREA ===== */
@@ -142,7 +165,6 @@
     .hero-card { grid-column: 1 / -1; min-height: 320px; display: flex; align-items: center; justify-content: space-between; padding: 2rem 4rem; background: linear-gradient(120deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02)); }
     #val-temp { font-size: clamp(4rem, 10vw, 7rem); font-weight: 800; line-height:1; letter-spacing: -4px; }
     
-    /* ===== NEW: INTELLIGENCE CARD ===== */
     .ai-card {
         grid-column: 1 / -1;
         background: linear-gradient(135deg, rgba(129, 140, 248, 0.1), rgba(0,0,0,0));
@@ -163,7 +185,6 @@
     .ai-content h3 { margin: 0 0 0.5rem 0; font-size: 1.1rem; color: var(--ai-glow); letter-spacing: 1px; text-transform: uppercase; }
     .ai-content p { margin: 0; font-size: 1rem; line-height: 1.5; color: rgba(255,255,255,0.85); }
 
-    /* FORECAST & ICONS */
     .forecast-container { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
     .forecast-card { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.2rem 0.8rem; text-align: center; backdrop-filter: blur(20px); transition: transform 0.3s ease, background 0.3s; }
     .forecast-card:hover { transform: translateY(-5px); background: rgba(255,255,255,0.1); }
@@ -200,22 +221,6 @@
     .detail-modal{ width: min(720px, 100%); padding: 1.6rem; border-radius: 34px; background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03)); }
     .detail-close{ position:absolute; top: 14px; right: 14px; width: 44px; height: 44px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: white; display:flex; align-items:center; justify-content:center; cursor:pointer; }
     
-    /* TIMELINE STYLES */
-    .timeline-wrapper { position: relative; padding-left: 2rem; max-width: 800px; margin: 0 auto; }
-    .timeline-wrapper::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, var(--accent), transparent); opacity: 0.3; }
-    .update-item { position: relative; margin-bottom: 2.5rem; }
-    .update-dot { position: absolute; left: -2.6rem; top: 24px; width: 20px; height: 20px; background: #000; border: 2px solid var(--text-muted); border-radius: 50%; z-index: 2; transition: all 0.3s ease; }
-    .update-item:hover .update-dot { border-color: var(--accent); box-shadow: 0 0 15px var(--accent); transform: scale(1.2); }
-    .update-dot.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 20px var(--accent); animation: pulseDot 2s infinite; }
-    @keyframes pulseDot { 0%{box-shadow:0 0 0 0 rgba(165,243,252,0.7)} 70%{box-shadow:0 0 0 10px transparent} 100%{box-shadow:0 0 0 0 transparent} }
-    .update-card { background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 24px; padding: 1.5rem; backdrop-filter: blur(10px); transition: transform 0.3s ease, background 0.3s; }
-    .update-card:hover { background: rgba(255,255,255,0.07); transform: translateX(10px); }
-    .ver-badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 1px; margin-right: 10px; }
-    .badge-new { background: var(--accent); color: #000; }
-    .feature-list { list-style: none; padding: 0; margin: 1rem 0 0 0; }
-    .feature-list li { display: flex; gap: 10px; margin-bottom: 0.8rem; color: rgba(255,255,255,0.8); font-size: 0.95rem; }
-    .feature-list i { color: var(--accent); margin-top: 3px; }
-
   </style>
 </head>
 <body>
@@ -223,9 +228,9 @@
   <div class="app-bg" id="app-bg"></div>
   <div class="app-noise"></div>
 
-  <div class="alert-ribbon-wrapper">
+  <div class="alert-ribbon-wrapper" id="ribbon">
      <div class="alert-track" id="alert-track">
-        <div class="alert-bubble safe"><i class="ph-bold ph-shield-check"></i> NetWatch AI Online</div>
+        <div class="alert-bubble safe"><i class="ph-bold ph-shield-check"></i> NetWatch System Online</div>
      </div>
   </div>
 
@@ -235,7 +240,7 @@
       <button class="nav-item active" onclick="switchTab('dashboard', this)" aria-label="Dashboard"><i class="ph-bold ph-cloud-sun"></i></button>
       <button class="nav-item" onclick="switchTab('wind', this)" aria-label="Wind"><i class="ph-bold ph-wind"></i></button>
       <button class="nav-item" onclick="switchTab('radar', this)" aria-label="Radar"><i class="ph-bold ph-radar"></i></button>
-      <button class="nav-item" onclick="switchTab('docs', this)" aria-label="Changelog"><i class="ph-bold ph-read-cv-logo"></i></button>
+      <button class="nav-item" onclick="window.location.href='updates.html'" aria-label="System Logs"><i class="ph-bold ph-read-cv-logo"></i></button>
       <div class="spacer" style="flex:1"></div>
       <button class="nav-item" onclick="switchTab('settings', this)" aria-label="Settings"><i class="ph-bold ph-gear"></i></button>
     </nav>
@@ -245,13 +250,13 @@
       <section id="view-dashboard" class="view-section active">
         <header class="view-header">
           <div class="view-title-group">
-            <div class="view-title"><span>NetWatch Pro <span class="beta-badge">BETA v3.0</span></span><h1>System Overview</h1></div>
+            <div class="view-title"><span>NetWatch Pro <span class="beta-badge">BETA v3.1</span></span><h1>System Overview</h1></div>
             <div class="status-ticker" id="status-ticker">AI Core: ONLINE. Scanning atmospheric variables...</div>
           </div>
           <div class="header-right" style="display:flex; align-items:center; gap:1.5rem;">
              <div class="search-box">
                 <i class="ph-bold ph-magnifying-glass"></i>
-                <input type="text" id="loc-search" placeholder="Search City..." onkeydown="handleSearch(event)">
+                <input type="text" id="loc-search" placeholder="City or Zip Code..." onkeydown="handleSearch(event)">
              </div>
              <div class="clock-glass">
                 <div class="clock-time" id="clock-time">--:--</div>
@@ -304,42 +309,6 @@
         </div>
       </section>
 
-      <section id="view-docs" class="view-section">
-        <header class="view-header"><div class="view-title"><span>System Log</span><h1>Update Timeline</h1></div></header>
-        <div class="timeline-wrapper">
-           
-           <div class="update-item">
-              <div class="update-dot active"></div>
-              <div class="update-card" style="border-left: 4px solid var(--ai-glow);">
-                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div><span class="ver-badge badge-new" style="background:var(--ai-glow); color:white;">v3.0</span><span style="font-weight:700; font-size:1.2rem;">AI & Alerts</span></div>
-                    <span style="opacity:0.5; font-size:0.9rem;">Current Build</span>
-                 </div>
-                 <ul class="feature-list">
-                    <li><i class="ph-bold ph-brain"></i> <strong>Intelligence Engine:</strong> Local heuristic AI generates daily weather briefings and strategic advice.</li>
-                    <li><i class="ph-bold ph-bell-ringing"></i> <strong>Push Alerts:</strong> Browser-based notifications for severe weather events (Enable in Settings).</li>
-                    <li><i class="ph-bold ph-chart-line-up"></i> <strong>Pressure Trend:</strong> Algorithm now tracks pressure stability for storm prediction.</li>
-                 </ul>
-              </div>
-           </div>
-           
-           <div class="update-item">
-              <div class="update-dot"></div>
-              <div class="update-card">
-                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div><span class="ver-badge badge-new">v2.5</span><span style="font-weight:700; font-size:1.2rem;">Severe Weather Ribbon</span></div>
-                    <span style="opacity:0.5; font-size:0.9rem;">Feb 15, 2026</span>
-                 </div>
-                 <ul class="feature-list">
-                    <li><i class="ph-bold ph-warning"></i> <strong>Alert Ribbon:</strong> Scrolling marquee for critical alerts.</li>
-                    <li><i class="ph-bold ph-shield-check"></i> <strong>Auto-Monitoring:</strong> System scans weather codes for hazards.</li>
-                 </ul>
-              </div>
-           </div>
-
-        </div>
-      </section>
-
       <section id="view-wind" class="view-section">
         <header class="view-header"><div class="view-title"><span>Simulation</span><h1>Live Ocean</h1></div></header>
         <div class="glass-card" style="height:400px; padding:0; position:relative; overflow:hidden;">
@@ -369,12 +338,19 @@
                 <span>24-Hour Time</span>
                 <label class="switch"><input type="checkbox" id="toggle-time" onchange="toggleTime()"><span class="slider"></span></label>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                 <span style="display:flex; flex-direction:column;">
                     <span>Severe Weather Push Alerts</span>
                     <span style="font-size:0.8rem; opacity:0.6;">Browser permission required</span>
                 </span>
                 <button onclick="requestPushPermission()" style="background:var(--accent); border:none; padding:8px 16px; border-radius:20px; font-weight:700; cursor:pointer;">Enable</button>
+            </div>
+            
+            <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,0.1);">
+                <span style="display:block; margin-bottom:0.5rem; opacity:0.7;">Developer Tools</span>
+                <button onclick="simulateSevereWeather()" style="width:100%; background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#fca5a5; padding:12px; border-radius:12px; cursor:pointer; font-weight:700;">
+                    <i class="ph-bold ph-siren"></i> TEST RED ALERT GRAPHICS
+                </button>
             </div>
         </div>
       </section>
@@ -392,19 +368,16 @@
 
   <script>
     let state = { lat: null, lon: null, unit: localStorage.getItem('nw_unit') || 'fahrenheit', use24h: localStorage.getItem('nw_24h') === 'true', timezone: "UTC", pushEnabled: false };
-    const ui = { loc: document.getElementById('loc-name'), temp: document.getElementById('val-temp'), cond: document.getElementById('val-cond'), humid: document.getElementById('val-humid'), dew: document.getElementById('val-dew'), press: document.getElementById('val-press'), vis: document.getElementById('val-vis'), windBig: document.getElementById('wind-big'), radar: document.getElementById('radar-container'), iconStage: document.getElementById('icon-stage'), forecastGrid: document.getElementById('forecast-grid'), ticker: document.getElementById('status-ticker'), alertTrack: document.getElementById('alert-track'), aiSummary: document.getElementById('ai-summary') };
+    const ui = { loc: document.getElementById('loc-name'), temp: document.getElementById('val-temp'), cond: document.getElementById('val-cond'), humid: document.getElementById('val-humid'), dew: document.getElementById('val-dew'), press: document.getElementById('val-press'), vis: document.getElementById('val-vis'), windBig: document.getElementById('wind-big'), radar: document.getElementById('radar-container'), iconStage: document.getElementById('icon-stage'), forecastGrid: document.getElementById('forecast-grid'), ticker: document.getElementById('status-ticker'), alertTrack: document.getElementById('alert-track'), aiSummary: document.getElementById('ai-summary'), ribbon: document.getElementById('ribbon') };
 
     function initApp() {
       document.getElementById('toggle-unit').checked = (state.unit === 'celsius');
       document.getElementById('toggle-time').checked = state.use24h;
       setInterval(updateClock, 1000); updateClock(); startTicker();
       if (navigator.geolocation) { navigator.geolocation.getCurrentPosition((pos) => { state.lat = pos.coords.latitude; state.lon = pos.coords.longitude; fetchLocationName(state.lat, state.lon); }, () => { getLocationByIP(); }); } else { getLocationByIP(); }
-      
-      // Check notification status
       if(Notification.permission === 'granted') state.pushEnabled = true;
     }
 
-    // ===== NEW: PUSH NOTIFICATIONS =====
     function requestPushPermission() {
         if (!("Notification" in window)) { alert("This browser does not support desktop notifications"); return; }
         Notification.requestPermission().then((permission) => {
@@ -417,59 +390,32 @@
 
     function checkPushAlerts(code) {
         if(!state.pushEnabled) return;
-        // Trigger alert only on severe codes (Simulated logic to prevent spam)
         let title = "", body = "";
         if(code >= 95) { title = "Severe Thunderstorm"; body = "Lightning and heavy rain detected in your area."; }
         else if(code >= 80 && code <= 82) { title = "Heavy Rain Alert"; body = "Flash flooding possible. Caution advised."; }
         else if(code >= 71 && code <= 75) { title = "Winter Storm Warning"; body = "Heavy snow accumulation likely."; }
-        
-        if(title) {
-            new Notification(`NetWatch Alert: ${title}`, { body: body });
-        }
+        if(title) { new Notification(`NetWatch Alert: ${title}`, { body: body }); }
     }
 
-    // ===== NEW: AI INTELLIGENCE ENGINE =====
     function generateIntelligence(curr, daily) {
-        // Heuristic Logic to simulate AI Analysis
         const code = curr.weathercode;
         const temp = curr.temperature;
-        const wind = curr.windspeed;
         const isDay = curr.is_day;
         
         let intro = isDay ? "Daylight analysis complete." : "Night scan complete.";
-        let condition = "";
-        let advice = "";
+        let advice = "Conditions are optimal for travel and operations.";
 
-        // Condition Logic
-        if(code === 0) condition = "Atmospheric stability is high with clear visibility.";
-        else if(code < 50) condition = "Cloud cover detected, but precipitation probability remains low.";
-        else if(code >= 95) condition = "Unstable air mass detected. Severe electrical storm activity present.";
-        else if(code >= 61) condition = "Active precipitation front moving through the region.";
-        
-        // Temperature Logic (Fahrenheit baseline for logic, converted if needed)
-        // Note: Logic simplifies assuming user context or raw values.
-        if((state.unit === 'fahrenheit' && temp > 85) || (state.unit === 'celsius' && temp > 29)) advice = "Heat index is elevated. Hydration recommended for outdoor activity.";
+        if((state.unit === 'fahrenheit' && temp > 85) || (state.unit === 'celsius' && temp > 29)) advice = "Heat index is elevated. Hydration recommended.";
         else if((state.unit === 'fahrenheit' && temp < 40) || (state.unit === 'celsius' && temp < 4)) advice = "Thermal readings are low. Heavy layers required.";
         else if(code >= 95) advice = "Seek shelter immediately. Lightning strikes detected nearby.";
         else if(code >= 51 && code <= 67) advice = "Road surfaces may be slick. Travel with caution.";
-        else advice = "Conditions are optimal for travel and operations.";
 
-        // Typewriter Effect
-        const fullText = `${intro} ${condition} ${advice}`;
-        typeWriterEffect(fullText, ui.aiSummary);
+        typeWriterEffect(`${intro} ${advice}`, ui.aiSummary);
     }
 
     function typeWriterEffect(text, element) {
-        element.textContent = "";
-        let i = 0;
-        let speed = 20; // ms
-        function type() {
-            if (i < text.length) {
-                element.textContent += text.charAt(i);
-                i++;
-                setTimeout(type, speed);
-            }
-        }
+        element.textContent = ""; let i = 0; let speed = 20;
+        function type() { if (i < text.length) { element.textContent += text.charAt(i); i++; setTimeout(type, speed); } }
         type();
     }
 
@@ -478,23 +424,67 @@
         setInterval(() => { if(Math.random() > 0.7) { const msg = messages[Math.floor(Math.random() * messages.length)]; ui.ticker.style.opacity = 0; setTimeout(() => { ui.ticker.textContent = "> " + msg; ui.ticker.style.opacity = 0.8; }, 500); } }, 5000);
     }
 
-    function generateAlerts(weatherCode) {
+    // ===== UPDATED: ALERT GENERATOR (FORECAST AWARE) =====
+    function generateAlerts(currentCode, dailyCodeToday) {
         ui.alertTrack.innerHTML = ""; 
         let alerts = [];
-        if(weatherCode === 95 || weatherCode === 96 || weatherCode === 99) { alerts.push({ text: "Severe Thunderstorm Warning", icon: "ph-lightning" }); alerts.push({ text: "Lightning Alert", icon: "ph-sparkle" }); }
-        else if(weatherCode >= 80 && weatherCode <= 82) { alerts.push({ text: "Flash Flood Watch", icon: "ph-drop" }); }
-        else if(weatherCode >= 71 && weatherCode <= 77) { alerts.push({ text: "Winter Storm Warning", icon: "ph-snowflake" }); }
-        else if(weatherCode >= 45 && weatherCode <= 48) { alerts.push({ text: "Dense Fog Advisory", icon: "ph-cloud-fog" }); }
-        else { alerts.push({ text: "No Active Hazards", icon: "ph-shield-check", safe: true }); alerts.push({ text: "System Monitoring Active", icon: "ph-activity", safe: true }); }
-        
-        alerts.forEach(alert => {
-             const div = document.createElement('div'); div.className = `alert-bubble ${alert.safe ? 'safe' : ''}`;
-             div.innerHTML = `<i class="ph-bold ${alert.icon}"></i> ${alert.text}`; ui.alertTrack.appendChild(div);
-        });
-        alerts.forEach(alert => { // Duplicate for scroll
-             const div = document.createElement('div'); div.className = `alert-bubble ${alert.safe ? 'safe' : ''}`;
-             div.innerHTML = `<i class="ph-bold ${alert.icon}"></i> ${alert.text}`; ui.alertTrack.appendChild(div);
-        });
+        let severeActive = false;
+
+        // Helper to add alerts
+        const addAlert = (text, icon, type = "normal") => {
+            alerts.push({ text, icon, type });
+        };
+
+        // 1. Check Current Weather (Immediate Threat)
+        if(currentCode >= 95) { 
+            addAlert("Severe Thunderstorm Warning", "ph-lightning", "severe"); 
+            severeActive = true; 
+        }
+        else if(currentCode >= 80 && currentCode <= 82) { addAlert("Flood Advisory", "ph-drop", "severe"); severeActive = true; }
+        else if(currentCode >= 71 && currentCode <= 77) { addAlert("Winter Storm Warning", "ph-snowflake", "severe"); severeActive = true; }
+
+        // 2. Check Today's Forecast (Future Threat - "Watch")
+        // If it's clear now, but storming later, issue a watch
+        if(!severeActive) {
+            if(dailyCodeToday >= 95) { addAlert("Severe Thunderstorm Watch", "ph-eye", "watch"); }
+            else if(dailyCodeToday >= 80 && dailyCodeToday <= 82) { addAlert("Flood Watch", "ph-waves", "watch"); }
+            else if(dailyCodeToday >= 71 && dailyCodeToday <= 77) { addAlert("Winter Weather Advisory", "ph-thermometer-cold", "watch"); }
+        }
+
+        // 3. System Status
+        if(alerts.length === 0) {
+             addAlert("No Active Hazards", "ph-shield-check", "safe");
+             addAlert("System Monitoring Active", "ph-activity", "safe");
+        }
+
+        // Render Logic
+        const render = () => {
+             alerts.forEach(alert => {
+                 const div = document.createElement('div'); 
+                 div.className = `alert-bubble ${alert.type}`;
+                 div.innerHTML = `<i class="ph-bold ${alert.icon}"></i> ${alert.text}`; 
+                 ui.alertTrack.appendChild(div);
+             });
+        };
+        render(); render(); // Duplicate for scroll
+
+        // TRIGGER VISUAL ALARM
+        if(severeActive) {
+            ui.ribbon.classList.add('severe-active');
+        } else {
+            ui.ribbon.classList.remove('severe-active');
+        }
+    }
+    
+    // NEW: Test Function
+    function simulateSevereWeather() {
+        ui.ribbon.classList.add('severe-active');
+        ui.alertTrack.innerHTML = "";
+        const div = document.createElement('div'); 
+        div.className = `alert-bubble`;
+        div.innerHTML = `<i class="ph-bold ph-warning"></i> SIMULATION: TORNADO WARNING`; 
+        ui.alertTrack.appendChild(div);
+        alert("Red Alert Graphics Activated. Check the top ribbon.");
     }
 
     async function fetchWeather() {
@@ -505,9 +495,11 @@
         const res = await fetch(url); const data = await res.json(); const curr = data.current_weather;
         state.timezone = data.timezone; updateClock(); updateTheme(curr.weathercode, curr.is_day);
         
-        generateAlerts(curr.weathercode);
-        generateIntelligence(curr, data.daily); // Trigger AI
-        checkPushAlerts(curr.weathercode); // Trigger Push
+        // PASS BOTH CURRENT AND DAILY CODE TO ALERTS
+        generateAlerts(curr.weathercode, data.daily.weathercode[0]);
+        
+        generateIntelligence(curr, data.daily);
+        checkPushAlerts(curr.weathercode);
 
         ui.temp.textContent = Math.round(curr.temperature) + "°"; ui.cond.textContent = getWeatherDesc(curr.weathercode); ui.windBig.textContent = Math.round(curr.windspeed);
         ui.humid.textContent = data.hourly.relativehumidity_2m[0] + "%"; ui.dew.textContent = Math.round(data.hourly.dewpoint_2m[0]) + "°"; ui.press.textContent = Math.round(data.hourly.pressure_msl[0]);
@@ -539,7 +531,31 @@
     function getWeatherDesc(code) { if(code === 0) return "Clear Sky"; if(code < 4) return "Partly Cloudy"; if(code < 50) return "Foggy"; if(code < 80) return "Rain"; return "Thunderstorm"; }
     function getWeatherIcon(code) { if(code === 0) return "☀️"; if(code < 4) return "🌤️"; if(code < 50) return "🌫️"; if(code < 80) return "🌧️"; return "⛈️"; }
     function updateClock() { const now = new Date(); const opts = { timeZone: state.timezone, hour: 'numeric', minute: '2-digit', hour12: !state.use24h }; if(state.use24h) opts.second = '2-digit'; document.getElementById('clock-time').textContent = now.toLocaleTimeString('en-US', opts); document.getElementById('clock-date').textContent = now.toLocaleDateString('en-US', { timeZone: state.timezone, weekday: 'short', month: 'short', day: 'numeric' }); }
-    async function handleSearch(e) { if(e.key === 'Enter') { const query = e.target.value; ui.loc.textContent = "Searching..."; try { const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=1&language=en&format=json`); const data = await res.json(); if(data.results && data.results.length > 0) { state.lat = data.results[0].latitude; state.lon = data.results[0].longitude; ui.loc.textContent = data.results[0].name; fetchWeather(); e.target.value = ""; e.target.blur(); } else { alert("Location not found."); ui.loc.textContent = "Unknown"; } } catch(err) { console.error(err); } } }
+    
+    // UPDATED SEARCH HANDLER WITH ZIP CODE LOGIC
+    async function handleSearch(e) { 
+        if(e.key === 'Enter') { 
+            const query = e.target.value; ui.loc.textContent = "Searching..."; 
+            
+            // ZIP CODE CHECK (5 Digits)
+            if (/^\d{5}$/.test(query)) {
+                 try {
+                     const res = await fetch(`https://api.zippopotam.us/us/${query}`);
+                     if (!res.ok) throw new Error("Zip not found");
+                     const data = await res.json();
+                     state.lat = data.places[0].latitude; 
+                     state.lon = data.places[0].longitude;
+                     ui.loc.textContent = `${data.places[0]["place name"]}, ${data.places[0]["state abbreviation"]}`;
+                     fetchWeather();
+                     e.target.value = ""; e.target.blur();
+                     return;
+                 } catch (err) { alert("Zip Code not found."); }
+            }
+
+            // DEFAULT TEXT SEARCH
+            try { const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=1&language=en&format=json`); const data = await res.json(); if(data.results && data.results.length > 0) { state.lat = data.results[0].latitude; state.lon = data.results[0].longitude; ui.loc.textContent = data.results[0].name; fetchWeather(); e.target.value = ""; e.target.blur(); } else { alert("Location not found."); ui.loc.textContent = "Unknown"; } } catch(err) { console.error(err); } 
+        } 
+    }
     async function getLocationByIP() { try { const res = await fetch('https://ipapi.co/json/'); const data = await res.json(); state.lat = data.latitude; state.lon = data.longitude; ui.loc.textContent = data.city; fetchWeather(); } catch (e) { ui.loc.textContent = "Location Unknown"; } }
     async function fetchLocationName(lat, lon) { try { const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`); const data = await res.json(); ui.loc.textContent = data.city || "Current Location"; fetchWeather(); } catch(e) { fetchWeather(); } }
     function toggleUnit() { state.unit = document.getElementById('toggle-unit').checked ? 'celsius' : 'fahrenheit'; localStorage.setItem('nw_unit', state.unit); fetchWeather(); }
