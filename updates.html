@@ -188,6 +188,69 @@
       .log-title { font-size: 2.5rem; }
     }
 
+  
+    /* ===== v3.1 POLISH PACK (Hover, Glow, Vignette, Reduced Motion) ===== */
+    :root{
+      --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+      --lift-shadow: 0 18px 55px rgba(0,0,0,0.55);
+      --soft-glow: 0 0 40px rgba(165, 243, 252, 0.14);
+    }
+
+    /* Subtle vignette + texture */
+    body::after{
+      content:"";
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(1200px 700px at 50% 0%, rgba(255,255,255,0.05), transparent 55%),
+        radial-gradient(1200px 900px at 50% 110%, rgba(0,0,0,0.75), transparent 55%),
+        radial-gradient(900px 600px at 0% 40%, rgba(0,0,0,0.65), transparent 55%),
+        radial-gradient(900px 600px at 100% 40%, rgba(0,0,0,0.65), transparent 55%);
+      pointer-events:none;
+      z-index: -1;
+      opacity: 0.85;
+    }
+
+    /* Premium hover lift for cards */
+    .stat-card, .update-card{
+      transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out), border-color .25s var(--ease-out), background .25s var(--ease-out);
+      will-change: transform, box-shadow;
+    }
+    .stat-card:hover, .update-card:hover{
+      transform: translateY(-4px);
+      box-shadow: var(--lift-shadow), var(--soft-glow);
+      border-color: rgba(165, 243, 252, 0.22);
+    }
+
+    /* Online breathing glow */
+    .status-online{
+      color: #00ff9d;
+      text-shadow: 0 0 10px rgba(0,255,157,0.22);
+      animation: pulseGlow 3s infinite ease-in-out;
+    }
+    @keyframes pulseGlow{
+      0%   { text-shadow: 0 0 6px rgba(0,255,157,0.18), 0 0 20px rgba(0,255,157,0.08); }
+      50%  { text-shadow: 0 0 14px rgba(0,255,157,0.35), 0 0 46px rgba(0,255,157,0.16); }
+      100% { text-shadow: 0 0 6px rgba(0,255,157,0.18), 0 0 20px rgba(0,255,157,0.08); }
+    }
+
+    /* Make timeline markers feel a bit more "alive" */
+    .entry-marker{
+      transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out);
+    }
+    .log-entry:hover .entry-marker{
+      transform: translateX(-50%) scale(1.06);
+      box-shadow: 0 0 28px var(--accent-glow);
+    }
+
+    /* Reduced motion accessibility */
+    @media (prefers-reduced-motion: reduce){
+      *, *::before, *::after{
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -214,11 +277,11 @@
         <div class="stat-label">Current Build</div>
       </div>
       <div class="stat-card">
-        <div class="stat-val">5</div>
+        <div class="stat-val">6</div>
         <div class="stat-label">Major Updates</div>
       </div>
       <div class="stat-card">
-        <div class="stat-val" style="color:#4ade80">ONLINE</div>
+        <div class="stat-val status-online">ONLINE</div>
         <div class="stat-label">System Status</div>
       </div>
     </div>
@@ -226,7 +289,25 @@
 
   <div class="timeline">
 
+    
+
     <div class="log-entry">
+      <div class="entry-date">Today • 1:00 AM</div>
+      <div class="entry-marker"></div>
+      <div class="entry-content">
+        <div class="update-card">
+          <span class="ver-tag">v3.1</span>
+          <div class="entry-title">Bug Fixes &amp; Enhancements</div>
+          <ul class="change-list">
+            <li><i class="ph-bold ph-magic-wand"></i> Enhanced glass depth, hover lift, and glow tuning across panels.</li>
+            <li><i class="ph-bold ph-navigation-arrow"></i> Improved navigation discoverability with labels + tooltips (including Radar).</li>
+            <li><i class="ph-bold ph-speaker-high"></i> Added optional voice readouts for alerts and periodic &quot;All Clear&quot; system status.</li>
+            <li><i class="ph-bold ph-shield-check"></i> Refined alert styling and accessibility (prefers-reduced-motion support).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+<div class="log-entry">
       <div class="entry-date">Today • 12:00 PM</div>
       <div class="entry-marker" style="border-color:var(--red-alert)"></div>
       <div class="entry-content">
